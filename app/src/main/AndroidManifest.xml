@@ -34,19 +34,6 @@
             </intent-filter>
         </activity>
 
-        <!--
-            configChanges keeps the activity alive across rotation/fold changes so the
-            decoder surface isn't torn down mid-stream. launchMode singleTask so the
-            notification tap returns to the existing viewer.
-        -->
-        <activity
-            android:name=".ViewerActivity"
-            android:exported="false"
-            android:launchMode="singleTask"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density|keyboard|keyboardHidden|navigation|uiMode"
-            android:theme="@style/Theme.LocalDex.Viewer" />
-
-        <!-- Owns the DeX session; its notification is the guaranteed stop switch. -->
         <service
             android:name=".DexService"
             android:exported="false" />

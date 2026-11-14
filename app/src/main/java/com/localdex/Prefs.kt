@@ -9,7 +9,7 @@ object Prefs {
     private const val KEY_ACTIVE = "dex_active"
     private const val KEY_SNAPSHOT = "dex_snapshot"
 
-    const val DEFAULT_DISPLAY_SPEC = "1920x1440/240"
+    const val DEFAULT_DISPLAY_SPEC = ""
 
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

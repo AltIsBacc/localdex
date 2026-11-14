@@ -16,14 +16,15 @@
             android:layout_height="wrap_content"
             android:textSize="15sp"
             android:lineSpacingExtra="2dp"
-            android:text="Checking status…" />
+            android:text="Checking root access…" />
 
         <Button
             android:id="@+id/actionButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="…" />
+            android:text="…"
+            android:visibility="gone" />
 
         <LinearLayout
             android:id="@+id/configGroup"
@@ -36,7 +37,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Display (WIDTHxHEIGHT/DPI)"
+                android:text="Display (WIDTHxHEIGHT/DPI, optional)"
                 android:textStyle="bold" />
 
             <EditText
@@ -44,31 +45,23 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="text"
-                android:hint="1920x1440/240" />
+                android:hint="Blank keeps the native size" />
         </LinearLayout>
 
         <Button
-            android:id="@+id/startButton"
+            android:id="@+id/enableButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="Start DeX"
+            android:text="Enable DeX on main display"
             android:visibility="gone" />
 
         <Button
-            android:id="@+id/viewerButton"
+            android:id="@+id/switchBackButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="Open Viewer"
-            android:visibility="gone" />
-
-        <Button
-            android:id="@+id/stopButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Stop DeX"
+            android:text="Switch back"
             android:visibility="gone" />
 
         <Button

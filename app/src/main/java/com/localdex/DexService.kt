@@ -8,98 +8,88 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.IBinder
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
-import com.localdex.scrcpy.ScrcpySession
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
-/**
- * Foreground service that owns the DeX session. Its notification is the guaranteed
- * way to stop everything even if the viewer UI is gone.
- */
 class DexService : Service() {
 
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val lock = Mutex()
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            ACTION_STOP -> {
-                ScrcpySession.current?.stop()
-                shutDown()
-                return START_NOT_STICKY
-            }
-            else -> {
-                createNotificationChannel()
-                startForeground(NOTIFICATION_ID, buildNotification())
+        createNotificationChannel()
+        runCatching { startForeground(NOTIFICATION_ID, buildNotification()) }
 
-                // The session is created in [Companion.start] (synchronously, in the
-                // caller) so the viewer can never race an async service start.
-                val session = ScrcpySession.current
-                if (session == null) {
-                    shutDown()
-                } else {
-                    serviceScope.launch {
-                        session.state.collectLatest { state ->
-                            when (state) {
-                                is ScrcpySession.State.Stopped -> shutDown()
-                                is ScrcpySession.State.Running -> {
-                                    getSystemService(NotificationManager::class.java)
-                                        .notify(NOTIFICATION_ID, buildNotification(state.displayId))
-                                }
-                                else -> {}
-                            }
-                        }
-                    }
-                }
-            }
+        when (intent?.action) {
+            ACTION_ENABLE -> scope.launch { enable(intent.getStringExtra(EXTRA_SPEC).orEmpty()) }
+            ACTION_SWITCH_BACK -> scope.launch { switchBack() }
+            else -> scope.launch { resume() }
         }
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
-    private fun shutDown() {
+    private suspend fun enable(spec: String) = lock.withLock {
+        DexMode.enable(this, spec).onFailure {
+            toast("Could not enable DeX: ${it.message}")
+            finish()
+        }
+    }
+
+    private suspend fun switchBack() = lock.withLock {
+        DexMode.disable(this)
+            .onSuccess { finish() }
+            .onFailure { toast("Could not switch back: ${it.message}") }
+    }
+
+    private suspend fun resume() = lock.withLock {
+        if (Prefs.isActive(this)) DexMode.reassert(this) else finish()
+    }
+
+    private fun finish() {
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        // The service dying must never leave a session (and the overlay display) behind.
-        ScrcpySession.current?.stop()
-        serviceScope.cancel()
+    private fun toast(message: String) {
+        Toast.makeText(applicationContext, message, Toast.LENGTH_LONG).show()
     }
 
-    private fun buildNotification(displayId: Int = -1): Notification {
-        val stopIntent = PendingIntent.getService(
+    override fun onDestroy() {
+        super.onDestroy()
+        scope.cancel()
+    }
+
+    private fun buildNotification(): Notification {
+        val switchBack = PendingIntent.getService(
             this,
             1,
-            Intent(this, DexService::class.java).setAction(ACTION_STOP),
+            Intent(this, DexService::class.java).setAction(ACTION_SWITCH_BACK),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val openIntent = PendingIntent.getActivity(
+        val open = PendingIntent.getActivity(
             this,
             2,
-            Intent(this, ViewerActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_view)
-            .setContentTitle(
-                if (displayId >= 0) "LocalDex is running (display $displayId)"
-                else "LocalDex is running"
-            )
-            .setContentText("Tap to open the viewer")
-            .setContentIntent(openIntent)
+            .setContentTitle("DeX is active on the main display")
+            .setContentText("Tap Switch back to restore the normal screen")
+            .setContentIntent(open)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop", stopIntent)
+            .addAction(android.R.drawable.ic_menu_revert, "Switch back", switchBack)
             .build()
     }
 
@@ -109,7 +99,7 @@ class DexService : Service() {
             "DeX session",
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Shown while a DeX session is running"
+            description = "Shown while DeX is running on the main display"
             setShowBadge(false)
         }
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
@@ -120,23 +110,22 @@ class DexService : Service() {
     companion object {
         private const val CHANNEL_ID = "dex_session"
         private const val NOTIFICATION_ID = 4001
+        private const val EXTRA_SPEC = "spec"
 
-        const val ACTION_STOP = "com.localdex.STOP_DEX"
+        const val ACTION_ENABLE = "com.localdex.ENABLE_DEX"
+        const val ACTION_SWITCH_BACK = "com.localdex.SWITCH_BACK"
 
-        fun start(context: Context) {
-            if (ScrcpySession.current == null) {
-                val session = ScrcpySession(
-                    context.applicationContext,
-                    Prefs.getDisplaySpec(context),
-                )
-                ScrcpySession.current = session
-                session.start()
-            }
-            ContextCompat.startForegroundService(context, Intent(context, DexService::class.java))
+        fun enable(context: Context, spec: String) {
+            ContextCompat.startForegroundService(
+                context,
+                Intent(context, DexService::class.java)
+                    .setAction(ACTION_ENABLE)
+                    .putExtra(EXTRA_SPEC, spec)
+            )
         }
 
-        fun stop(context: Context) {
-            context.startService(Intent(context, DexService::class.java).setAction(ACTION_STOP))
+        fun switchBack(context: Context) {
+            context.startService(Intent(context, DexService::class.java).setAction(ACTION_SWITCH_BACK))
         }
     }
 }
