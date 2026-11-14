@@ -1,0 +1,1 @@
+-keep class com.localdex.xposed.DexHook { *; }
