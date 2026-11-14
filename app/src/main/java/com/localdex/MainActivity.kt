@@ -122,7 +122,5 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val REFRESH_DELAY_MS = 2000L
-
-        const val EXTRA_FROM_PAIRING = "com.localdex.FROM_PAIRING"
     }
 }
