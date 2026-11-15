@@ -33,9 +33,14 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Build debug APK
+        shell: bash
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug
+          if ! ./gradlew --no-daemon assembleDebug > build.log 2>&1; then
+            summary=$(grep -E "^e: |^w: .*error|What went wrong|Could not|Caused by|FAILED|^> |error:" build.log | head -c 6000 | awk '{printf "%s%%0A", $0}')
+            echo "::error title=Gradle failure::${summary}"
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
