@@ -62,6 +62,7 @@ class DisplayService : Service() {
         .setOngoing(true)
         .setOnlyAlertOnce(true)
         .setCategory(NotificationCompat.CATEGORY_SERVICE)
+        .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
         .setContentIntent(
             PendingIntent.getActivity(
                 this,
