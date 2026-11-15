@@ -31,6 +31,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var dpiChoice: Choice
     private lateinit var hzChoice: Choice
 
+    private var running = false
     private var screenHz = 60f
     private lateinit var refreshRates: List<Float>
 
@@ -80,6 +81,13 @@ class MainActivity : AppCompatActivity() {
         refreshButton.setOnClickListener { refresh() }
         resetButton.setOnClickListener { listOf(resolutionChoice, dpiChoice, hzChoice).forEach { it.reset() } }
         viewerButton.setOnClickListener { openViewer() }
+
+        lifecycleScope.launch {
+            DisplaySession.config.collect {
+                running = it != null
+                refreshSummary()
+            }
+        }
     }
 
     override fun onResume() {
@@ -197,8 +205,13 @@ class MainActivity : AppCompatActivity() {
             null
         }
         currentSpec = spec
-        viewerButton.isEnabled = spec != null
-        summaryText.text = if (spec != null) describe(spec) else error?.message.orEmpty()
+        viewerButton.text = if (running) "Return to virtual display" else "Open virtual display"
+        viewerButton.isEnabled = running || spec != null
+        summaryText.text = when {
+            spec == null -> error?.message.orEmpty()
+            running -> describe(spec) + "\nA display is already running. Close it to apply new settings."
+            else -> describe(spec)
+        }
     }
 
     private fun describe(spec: DisplaySpec): String {
@@ -223,8 +236,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openViewer() {
-        val spec = currentSpec ?: return
-        Prefs.setSpec(this, spec)
+        if (!running) {
+            val spec = currentSpec ?: return
+            Prefs.setSpec(this, spec)
+            DisplayService.open(this)
+        }
         startActivity(Intent(this, DisplayActivity::class.java))
     }
 
