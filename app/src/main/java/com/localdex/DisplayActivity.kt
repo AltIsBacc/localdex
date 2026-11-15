@@ -3,6 +3,7 @@ package com.localdex
 import android.annotation.SuppressLint
 import android.hardware.input.InputManager
 import android.os.Bundle
+import android.util.Log
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.InputDevice
@@ -166,10 +167,24 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
                 Toast.LENGTH_LONG
             ).show()
         }
-        Root.exec("settings put global enable_freeform_support 1")
-        // Without this, activities that are not resizable are refused on a secondary display and open on the main one.
-        Root.exec("settings put global force_resizable_activities 1")
-        Root.exec("wm set-display-windowing-mode -d ${ready.displayId} 5")
+        val commands = listOf(
+            "settings put global enable_freeform_support 1",
+            // Without this, activities that are not resizable are refused on a secondary display and open on the main one.
+            "settings put global force_resizable_activities 1",
+            "wm set-display-windowing-mode -d ${ready.displayId} 5",
+        )
+        val failed = commands.filterNot { command ->
+            val result = Root.exec(command)
+            if (!result.ok) Log.w("LocalDex", "'$command' failed (${result.code}): ${result.output}")
+            result.ok
+        }
+        if (failed.isNotEmpty()) {
+            Toast.makeText(
+                this,
+                "${failed.size} display setup command(s) failed; see logcat (tag LocalDex)",
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     private fun fitSurface() {
