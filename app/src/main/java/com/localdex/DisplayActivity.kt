@@ -1,37 +1,58 @@
 package com.localdex
 
+import android.annotation.SuppressLint
 import android.os.Bundle
+import android.view.Gravity
+import android.view.HapticFeedbackConstants
+import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.SurfaceHolder
-import android.view.SurfaceView
+import android.view.View
+import android.view.ViewConfiguration
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import com.localdex.root.DisplayReady
 import com.localdex.root.RootManager
 import com.localdex.root.VirtualDisplayFlow
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
-/**
- * Hosts a virtual display in a SurfaceView. The SurfaceView's Surface is handed to the root process, which creates
- * the virtual display directly on it ([VirtualDisplayFlow]), so there is no video encoding or decoding anywhere.
- *
- * The display lives exactly as long as the Surface: it is released when the Surface is destroyed.
- */
 class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
-    private var session: Job? = null
+    private lateinit var root: FrameLayout
+    private lateinit var surfaceView: DexSurfaceView
 
-    /** Width, height and dpi of the virtual display, fixed after the first surfaceChanged. */
+    private val forwarder = InputForwarder()
+    private var session: Job? = null
     private var size: Triple<Int, Int, Int>? = null
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         supportActionBar?.hide()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContentView(R.layout.activity_display)
-        findViewById<SurfaceView>(R.id.surfaceView).holder.addCallback(this)
+
+        root = findViewById(R.id.displayRoot)
+        surfaceView = findViewById(R.id.surfaceView)
+        surfaceView.forwarder = forwarder
+        surfaceView.holder.addCallback(this)
+        surfaceView.setOnTouchListener { view, event -> forwarder.onTouch(view, event) }
+        surfaceView.setOnGenericMotionListener { view, event -> forwarder.onGenericMotion(view, event) }
+
+        makeDraggable(findViewById(R.id.closeButton)) { finish() }
+        makeDraggable(findViewById(R.id.keyboardButton)) { toggleKeyboard() }
+
+        root.addOnLayoutChangeListener { _, l, t, r, b, ol, ot, or, ob ->
+            if (r - l != or - ol || b - t != ob - ot) fitSurface()
+        }
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) = Unit
@@ -45,6 +66,10 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
                 spec?.groupValues?.get(3)?.toInt() ?: resources.displayMetrics.densityDpi,
             )
         }.also { size = it }
+        forwarder.displayWidth = displayWidth
+        forwarder.displayHeight = displayHeight
+        fitSurface()
+
         // The virtual display renders into buffers of exactly this size; wait for the resized surface.
         if (width != displayWidth || height != displayHeight) {
             holder.setFixedSize(displayWidth, displayHeight)
@@ -55,18 +80,7 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
         session = lifecycleScope.launch {
             try {
                 RootManager.use { server ->
-                    server.flow(VirtualDisplayFlow(surface, displayWidth, displayHeight, dpi)).collect { ready ->
-                        if (!ready.trusted) {
-                            Toast.makeText(
-                                this@DisplayActivity,
-                                "The system did not mark the display as trusted, so no desktop will appear",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                        // Virtual displays default to fullscreen windowing on recent One UI; freeform gives windows.
-                        Root.exec("settings put global enable_freeform_support 1")
-                        Root.exec("wm set-display-windowing-mode -d ${ready.displayId} 5")
-                    }
+                    server.flow(VirtualDisplayFlow(surface, displayWidth, displayHeight, dpi)).collect { onReady(it) }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -74,12 +88,131 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
                 val cause = generateSequence<Throwable>(e) { it.cause }.last()
                 Toast.makeText(this@DisplayActivity, "Virtual display failed: $cause", Toast.LENGTH_LONG).show()
                 finish()
+            } finally {
+                forwarder.control = null
             }
         }
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
+        forwarder.control = null
         session?.cancel()
         session = null
+    }
+
+    private suspend fun onReady(ready: DisplayReady) {
+        forwarder.control = DexControl(ready.control.value)
+        if (!ready.trusted) {
+            Toast.makeText(
+                this,
+                "The system did not mark the display as trusted, so no desktop will appear",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+        Root.exec("settings put global enable_freeform_support 1")
+        Root.exec("wm set-display-windowing-mode -d ${ready.displayId} 5")
+    }
+
+    private fun fitSurface() {
+        val (displayWidth, displayHeight, _) = size ?: return
+        root.post {
+            val containerWidth = root.width - root.paddingLeft - root.paddingRight
+            val containerHeight = root.height - root.paddingTop - root.paddingBottom
+            if (containerWidth <= 0 || containerHeight <= 0) return@post
+
+            val scale = minOf(
+                containerWidth.toFloat() / displayWidth,
+                containerHeight.toFloat() / displayHeight
+            )
+            val width = (displayWidth * scale).toInt()
+            val height = (displayHeight * scale).toInt()
+            val params = surfaceView.layoutParams as FrameLayout.LayoutParams
+            if (params.width == width && params.height == height) return@post
+            params.width = width
+            params.height = height
+            params.gravity = Gravity.CENTER
+            surfaceView.layoutParams = params
+        }
+    }
+
+    private fun toggleKeyboard() {
+        val controller = WindowCompat.getInsetsController(window, surfaceView)
+        surfaceView.requestFocus()
+        val visible = ViewCompat.getRootWindowInsets(root)?.isVisible(WindowInsetsCompat.Type.ime()) == true
+        if (visible) {
+            controller.hide(WindowInsetsCompat.Type.ime())
+        } else {
+            controller.show(WindowInsetsCompat.Type.ime())
+        }
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (forwarder.onKey(event)) return true
+        return super.dispatchKeyEvent(event)
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun makeDraggable(button: View, onTap: () -> Unit) {
+        val slop = ViewConfiguration.get(this).scaledTouchSlop
+        var downRawX = 0f
+        var downRawY = 0f
+        var startTx = 0f
+        var startTy = 0f
+        var dragging = false
+        val startDrag = Runnable {
+            dragging = true
+            button.alpha = 0.9f
+            button.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+        }
+
+        button.setOnTouchListener { view, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    downRawX = event.rawX
+                    downRawY = event.rawY
+                    startTx = view.translationX
+                    startTy = view.translationY
+                    dragging = false
+                    view.postDelayed(startDrag, DRAG_HOLD_MS)
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = event.rawX - downRawX
+                    val dy = event.rawY - downRawY
+                    if (dragging) {
+                        view.translationX = startTx + dx
+                        view.translationY = startTy + dy
+                    } else if (dx * dx + dy * dy > slop * slop) {
+                        view.removeCallbacks(startDrag)
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    view.removeCallbacks(startDrag)
+                    val dx = event.rawX - downRawX
+                    val dy = event.rawY - downRawY
+                    if (dragging) {
+                        dragging = false
+                        view.alpha = 0.5f
+                    } else if (dx * dx + dy * dy <= slop * slop) {
+                        onTap()
+                    }
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    view.removeCallbacks(startDrag)
+                    if (dragging) {
+                        dragging = false
+                        view.alpha = 0.5f
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private companion object {
+        const val DRAG_HOLD_MS = 350L
     }
 }
