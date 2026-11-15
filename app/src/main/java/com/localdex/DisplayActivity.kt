@@ -3,7 +3,6 @@ package com.localdex
 import android.annotation.SuppressLint
 import android.hardware.input.InputManager
 import android.os.Bundle
-import android.util.Log
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.InputDevice
@@ -15,7 +14,6 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.FrameLayout
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -23,13 +21,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
-import com.localdex.root.DisplayReady
-import com.localdex.root.RootManager
-import com.localdex.root.VirtualDisplayFlow
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlin.math.abs
 
 class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
@@ -43,9 +35,8 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
         override fun onInputDeviceRemoved(deviceId: Int) = updateControls()
         override fun onInputDeviceChanged(deviceId: Int) = updateControls()
     }
-    private val spec by lazy { Prefs.getSpec(this) }
-    private var session: Job? = null
-    private var size: Triple<Int, Int, Int>? = null
+    private var config: DisplaySession.Config? = null
+    private var attached = false
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,8 +59,15 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
         val closeButton = findViewById<View>(R.id.closeButton)
         val keyboardButton = findViewById<View>(R.id.keyboardButton)
         controls = listOf(closeButton, keyboardButton)
-        makeDraggable(closeButton) { finish() }
+        makeDraggable(closeButton) { DisplaySession.stop() }
         makeDraggable(keyboardButton) { toggleKeyboard() }
+
+        lifecycleScope.launch {
+            DisplaySession.config.collect { if (it == null) finish() else applyConfig(it) }
+        }
+        lifecycleScope.launch {
+            DisplaySession.control.collect { forwarder.control = it }
+        }
 
         root.addOnLayoutChangeListener { _, l, t, r, b, ol, ot, or, ob ->
             if (r - l != or - ol || b - t != ob - ot) fitSurface()
@@ -118,92 +116,39 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
     override fun surfaceCreated(holder: SurfaceHolder) = Unit
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-        val (displayWidth, displayHeight, dpi) = size ?: run {
-            val screen = windowManager.maximumWindowMetrics.bounds
-            // Automatic never borrows the phone's density, which would give a phone-sized UI on a desktop display.
-            val width = spec.width ?: screen.width()
-            Triple(width, spec.height ?: screen.height(), spec.dpi ?: DisplaySpec.autoDpi(width))
-        }.also { size = it }
-        forwarder.displayWidth = displayWidth
-        forwarder.displayHeight = displayHeight
-        fitSurface()
-
-        // Tell the panel what rate the content is meant to run at, so an adaptive refresh rate screen does not settle
-        // below it. This is only a hint, and only the virtual display's own rate decides how often it renders.
-        spec.hz?.let { holder.surface.setFrameRate(it, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT) }
-
-        // The virtual display renders into buffers of exactly this size; wait for the resized surface.
-        if (width != displayWidth || height != displayHeight) {
-            holder.setFixedSize(displayWidth, displayHeight)
+        val config = config ?: return
+        if (width != config.width || height != config.height) {
+            holder.setFixedSize(config.width, config.height)
             return
         }
-        if (session?.isActive == true) return
-        val surface = holder.surface
-        session = lifecycleScope.launch {
-            try {
-                RootManager.use { server ->
-                    server.flow(VirtualDisplayFlow(surface, displayWidth, displayHeight, dpi, spec.hz ?: 0f))
-                        .collect { onReady(it) }
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                val cause = generateSequence<Throwable>(e) { it.cause }.last()
-                Toast.makeText(this@DisplayActivity, "Virtual display failed: $cause", Toast.LENGTH_LONG).show()
-                finish()
-            } finally {
-                forwarder.control = null
-            }
-        }
+        config.hz?.let { holder.surface.setFrameRate(it, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT) }
+        if (attached) return
+        attached = true
+        DisplaySession.attach(this, holder.surface)
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
-        forwarder.control = null
-        session?.cancel()
-        session = null
+        attached = false
+        DisplaySession.detach(this)
     }
 
-    private suspend fun onReady(ready: DisplayReady) {
-        forwarder.control = DexControl(ready.control.value)
-        if (!ready.trusted) {
-            Toast.makeText(
-                this,
-                "The system did not mark the display as trusted, so no desktop will appear",
-                Toast.LENGTH_LONG
-            ).show()
-        }
-        spec.hz?.let { requested ->
-            if (abs(ready.refreshRate - requested) > 1f) {
-                Toast.makeText(
-                    this,
-                    "Asked for ${DisplaySpec.formatHz(requested)} Hz, the system gave " +
-                        "${DisplaySpec.formatHz(ready.refreshRate)} Hz",
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        }
-        val commands = listOf(
-            "settings put global enable_freeform_support 1",
-            // Without this, activities that are not resizable are refused on a secondary display and open on the main one.
-            "settings put global force_resizable_activities 1",
-            "wm set-display-windowing-mode -d ${ready.displayId} 5",
-        )
-        val failed = commands.filterNot { command ->
-            val result = Root.exec(command)
-            if (!result.ok) Log.w("LocalDex", "'$command' failed (${result.code}): ${result.output}")
-            result.ok
-        }
-        if (failed.isNotEmpty()) {
-            Toast.makeText(
-                this,
-                "${failed.size} display setup command(s) failed; see logcat (tag LocalDex)",
-                Toast.LENGTH_LONG
-            ).show()
-        }
+    override fun onDestroy() {
+        DisplaySession.detach(this)
+        super.onDestroy()
+    }
+
+    private fun applyConfig(config: DisplaySession.Config) {
+        this.config = config
+        forwarder.displayWidth = config.width
+        forwarder.displayHeight = config.height
+        surfaceView.holder.setFixedSize(config.width, config.height)
+        fitSurface()
     }
 
     private fun fitSurface() {
-        val (displayWidth, displayHeight, _) = size ?: return
+        val config = config ?: return
+        val displayWidth = config.width
+        val displayHeight = config.height
         root.post {
             val containerWidth = root.width - root.paddingLeft - root.paddingRight
             val containerHeight = root.height - root.paddingTop - root.paddingBottom
