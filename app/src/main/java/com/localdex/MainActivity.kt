@@ -21,6 +21,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var configGroup: View
     private lateinit var displaySpecField: EditText
     private lateinit var enableButton: Button
+    private lateinit var viewerButton: Button
     private lateinit var switchBackButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,12 +34,14 @@ class MainActivity : AppCompatActivity() {
         configGroup = findViewById(R.id.configGroup)
         displaySpecField = findViewById(R.id.displaySpecField)
         enableButton = findViewById(R.id.enableButton)
+        viewerButton = findViewById(R.id.viewerButton)
         switchBackButton = findViewById(R.id.switchBackButton)
 
         displaySpecField.setText(Prefs.getDisplaySpec(this))
 
         refreshButton.setOnClickListener { refresh() }
         enableButton.setOnClickListener { enableDex() }
+        viewerButton.setOnClickListener { openViewer() }
         switchBackButton.setOnClickListener {
             DexService.switchBack(this)
             statusText.postDelayed({ refresh() }, REFRESH_DELAY_MS)
@@ -69,7 +72,7 @@ class MainActivity : AppCompatActivity() {
     private fun showNoRoot() {
         statusText.text = "❌ Root access was not granted.\n\n" +
             "Allow LocalDex in your root manager (Magisk / KernelSU), then refresh."
-        render(action = false, config = false, enable = false, switchBack = false)
+        render(action = false, config = false, enable = false, viewer = false, switchBack = false)
     }
 
     private fun showNotificationsOff() {
@@ -82,7 +85,7 @@ class MainActivity : AppCompatActivity() {
                     .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
             )
         }
-        render(action = true, config = false, enable = false, switchBack = false)
+        render(action = true, config = false, enable = false, viewer = false, switchBack = false)
     }
 
     private fun showReady() {
@@ -90,19 +93,20 @@ class MainActivity : AppCompatActivity() {
             "Enabling DeX turns the main display into the DeX desktop. Leave the " +
             "display spec blank to keep the native resolution, or enter " +
             "WIDTHxHEIGHT/DPI. Switch back anytime from the notification."
-        render(action = false, config = true, enable = true, switchBack = false)
+        render(action = false, config = true, enable = true, viewer = true, switchBack = false)
     }
 
     private fun showActive() {
         statusText.text = "🖥️ DeX is active on the main display.\n\n" +
             "Switch back here or from the LocalDex notification."
-        render(action = false, config = false, enable = false, switchBack = true)
+        render(action = false, config = false, enable = false, viewer = false, switchBack = true)
     }
 
-    private fun render(action: Boolean, config: Boolean, enable: Boolean, switchBack: Boolean) {
+    private fun render(action: Boolean, config: Boolean, enable: Boolean, viewer: Boolean, switchBack: Boolean) {
         actionButton.visibility = visibility(action)
         configGroup.visibility = visibility(config)
         enableButton.visibility = visibility(enable)
+        viewerButton.visibility = visibility(viewer)
         switchBackButton.visibility = visibility(switchBack)
         refreshButton.visibility = visibility(!switchBack)
     }
@@ -118,6 +122,16 @@ class MainActivity : AppCompatActivity() {
         Prefs.setDisplaySpec(this, spec)
         DexService.enable(this, spec)
         statusText.postDelayed({ refresh() }, REFRESH_DELAY_MS)
+    }
+
+    private fun openViewer() {
+        val spec = displaySpecField.text.toString().trim()
+        if (spec.isNotEmpty() && !DexMode.SPEC_PATTERN.matches(spec)) {
+            Toast.makeText(this, "Display spec must look like 1920x1080/240", Toast.LENGTH_LONG).show()
+            return
+        }
+        Prefs.setDisplaySpec(this, spec)
+        startActivity(Intent(this, DisplayActivity::class.java))
     }
 
     companion object {
