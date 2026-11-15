@@ -16,6 +16,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import com.localdex.root.DisplayReady
 import com.localdex.root.RootManager
@@ -38,6 +40,10 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
         super.onCreate(savedInstanceState)
         supportActionBar?.hide()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.attributes = window.attributes.also {
+            it.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+        }
         setContentView(R.layout.activity_display)
 
         root = findViewById(R.id.displayRoot)
@@ -53,6 +59,24 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
         root.addOnLayoutChangeListener { _, l, t, r, b, ol, ot, or, ob ->
             if (r - l != or - ol || b - t != ob - ot) fitSurface()
         }
+        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+            view.updatePadding(bottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom)
+            fitSurface()
+            insets
+        }
+
+        enterImmersive()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) enterImmersive()
+    }
+
+    private fun enterImmersive() {
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
+        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        controller.hide(WindowInsetsCompat.Type.systemBars())
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) = Unit
@@ -60,9 +84,10 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         val (displayWidth, displayHeight, dpi) = size ?: run {
             val spec = DisplaySpec.PATTERN.matchEntire(Prefs.getDisplaySpec(this))
+            val screen = windowManager.maximumWindowMetrics.bounds
             Triple(
-                spec?.groupValues?.get(1)?.toInt() ?: width,
-                spec?.groupValues?.get(2)?.toInt() ?: height,
+                spec?.groupValues?.get(1)?.toInt() ?: screen.width(),
+                spec?.groupValues?.get(2)?.toInt() ?: screen.height(),
                 spec?.groupValues?.get(3)?.toInt() ?: resources.displayMetrics.densityDpi,
             )
         }.also { size = it }
