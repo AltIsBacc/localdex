@@ -13,7 +13,7 @@ object Prefs {
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    /** Zero means automatic. Falls back to the single `WIDTHxHEIGHT/DPI` string older versions saved. */
+    // Zero means automatic
     fun getSpec(context: Context): DisplaySpec {
         val prefs = prefs(context)
         if (!prefs.contains(KEY_WIDTH) && !prefs.contains(KEY_DPI) && !prefs.contains(KEY_HZ)) {

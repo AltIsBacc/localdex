@@ -29,15 +29,13 @@ jobs:
           major="${BASH_REMATCH[1]}"
           minor="${BASH_REMATCH[2]}"
           patch="${BASH_REMATCH[3]}"
-          # Derived from the version itself so it only ever grows and never has to
-          # be remembered (same scheme as anyapk).
+          # Derived from the version so it only ever grows
           code=$(( major * 10000 + minor * 100 + patch ))
           echo "version=${major}.${minor}.${patch}" >> "$GITHUB_OUTPUT"
           echo "versionCode=${code}" >> "$GITHUB_OUTPUT"
           echo "Releasing ${TAG} as versionCode ${code}"
 
-      # The build comes from the tag itself, not from whatever main has moved on
-      # to since.
+      # Build the tag itself, not whatever main has moved on to
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.ref_name }}
@@ -80,8 +78,6 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          # The tag already exists and already points at the right commit; this
-          # only attaches the build to it.
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           generate_release_notes: true

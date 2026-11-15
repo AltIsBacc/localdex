@@ -35,7 +35,6 @@ class MainActivity : AppCompatActivity() {
     private var screenHz = 60f
     private lateinit var refreshRates: List<Float>
 
-    /** The spec the pickers currently describe, or null while one of them holds an invalid custom value. */
     private var currentSpec: DisplaySpec? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -119,13 +118,11 @@ class MainActivity : AppCompatActivity() {
         viewerButton.visibility = visibility
     }
 
-    /** The highest refresh rate the built-in screen supports, which the virtual display's rate divides. */
     private fun screenRefreshRate(): Float {
         val display = getSystemService(DisplayManager::class.java).getDisplay(Display.DEFAULT_DISPLAY) ?: return 60f
         return display.supportedModes.maxOfOrNull { it.refreshRate } ?: display.refreshRate
     }
 
-    /** The built-in screen's size as the virtual display sees it: landscape, whatever this activity's orientation. */
     private fun screenSize(): Pair<Int, Int> {
         val bounds = windowManager.maximumWindowMetrics.bounds
         return maxOf(bounds.width(), bounds.height()) to minOf(bounds.width(), bounds.height())
@@ -189,7 +186,6 @@ class MainActivity : AppCompatActivity() {
         return Result.success(hz)
     }
 
-    /** Re-reads the pickers, flags invalid custom values inline and shows what the display would end up as. */
     private fun refreshSummary() {
         val resolution = readResolution()
         val dpi = readDpi()
@@ -244,10 +240,6 @@ class MainActivity : AppCompatActivity() {
         startActivity(Intent(this, DisplayActivity::class.java))
     }
 
-    /**
-     * A spinner with an "automatic" entry first, the [presets], and a "Custom…" entry last. The [field] is shown only
-     * while Custom is selected. [onChange] runs when the selection or the field's text changes.
-     */
     private class Choice(
         val spinner: Spinner,
         val field: EditText,
@@ -275,7 +267,6 @@ class MainActivity : AppCompatActivity() {
 
         val isCustom: Boolean get() = spinner.selectedItemPosition == customIndex
 
-        /** Index into the presets, or null while automatic or Custom is selected. */
         val presetIndex: Int?
             get() = (spinner.selectedItemPosition - 1).takeIf { it in 0 until customIndex - 1 }
 
@@ -292,7 +283,6 @@ class MainActivity : AppCompatActivity() {
             spinner.setSelection(0)
         }
 
-        /** Marks the field only once something has been typed, so a freshly opened Custom field is not red. */
         fun showError(message: String?) {
             val shown = if (isCustom && field.text.isNotEmpty()) message else null
             if (field.error?.toString() != shown) field.error = shown

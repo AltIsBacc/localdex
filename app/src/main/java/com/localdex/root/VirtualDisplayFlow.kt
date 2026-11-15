@@ -19,29 +19,20 @@ import kotlinx.parcelize.Parcelize
 data class DisplayReady(
     val displayId: Int,
     val trusted: Boolean,
-    /** The refresh rate the system actually gave the display, which can differ from the one requested. */
     val refreshRate: Float,
     val control: ParcelableBinder,
 ) : Parcelable
 
-/**
- * Runs in the root process. Creates a virtual display whose output is [surface], the Surface of a SurfaceView living
- * in the app, so SurfaceFlinger composites the display straight into the app's buffer queue: no capture, no encoder,
- * no decoder.
- *
- * Emits [DisplayReady] once, then stays alive until the collector is cancelled. Cancelling releases the display,
- * so the display can never outlive the SurfaceView that is showing it.
- */
 @Parcelize
 class VirtualDisplayFlow(
     private val surface: Surface,
     private val width: Int,
     private val height: Int,
     private val dpi: Int,
-    /** Requested refresh rate in Hz; 0 leaves it to the system. The system rounds it to a divisor of the screen's. */
+    // 0 leaves the refresh rate to the system
     private val refreshRate: Float = 0f,
 ) : RootFlow<DisplayReady> {
-    // Hidden DisplayManager.VIRTUAL_DISPLAY_FLAG_* values, same set scrcpy uses for --new-display.
+    // Hidden DisplayManager.VIRTUAL_DISPLAY_FLAG_* values, the set scrcpy uses for --new-display
     private companion object {
         const val PUBLIC = 1 shl 0
         const val PRESENTATION = 1 shl 1
@@ -62,11 +53,7 @@ class VirtualDisplayFlow(
         const val DISPLAY_NAME = "LocalDex"
     }
 
-    /**
-     * The long-standing [DisplayManager.createVirtualDisplay] overload has no refresh rate parameter, so a requested
-     * rate goes through [VirtualDisplayConfig] (API 34+). Any failure falls back to the plain overload, so the
-     * display still opens, at the default rate.
-     */
+    // The plain createVirtualDisplay overload cannot request a refresh rate, so that goes through VirtualDisplayConfig
     private fun createDisplay(manager: DisplayManager, flags: Int): VirtualDisplay? {
         val configured = if (refreshRate > 0f && Build.VERSION.SDK_INT >= 34) {
             createWithRefreshRate(manager, flags)

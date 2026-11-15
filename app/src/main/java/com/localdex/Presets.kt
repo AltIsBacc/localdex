@@ -18,23 +18,14 @@ object Presets {
         Resolution("3840×2160 (4K, heavy on the GPU)", 3840, 2160),
     )
 
-    /** The standard Android density buckets, with extra steps below 240 where a desktop usually wants to be. */
     val dpis = listOf(120, 140, 160, 180, 200, 213, 240, 280, 320, 400, 480)
 
-    /**
-     * Refresh rates the system can honour exactly: the system rounds a request up to a divisor of the physical
-     * screen's rate, so on a 90 Hz panel 60 would become 90 while 90, 45 and 30 are exact. Rates below 24 Hz are
-     * left out because they are not usable for a desktop.
-     */
+    // The system rounds a request up to a divisor of the screen's rate, so only divisors are exact
     fun refreshRates(screenHz: Float): List<Float> {
         val screen = screenHz.roundToInt().coerceAtLeast(1)
         return (1..4).map { screen.toFloat() / it }.filter { it >= 24f }
     }
 
-    /**
-     * Roughly what the system gives for [requested]: the lowest divisor of the screen's rate that is not below it,
-     * and the screen's own rate for anything above it. The system decides, so this is only a preview.
-     */
     fun expectedRefreshRate(screenHz: Float, requested: Float): Float {
         val screen = screenHz.roundToInt().coerceAtLeast(1).toFloat()
         if (requested >= screen) return screen

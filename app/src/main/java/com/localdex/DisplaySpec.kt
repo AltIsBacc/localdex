@@ -3,10 +3,7 @@ package com.localdex
 import java.util.Locale
 import kotlin.math.roundToInt
 
-/**
- * What the virtual display should look like. A null part means "choose automatically": the screen's own size, a
- * desktop-sized density (see [autoDpi]) and the system's default refresh rate.
- */
+// A null part means automatic
 data class DisplaySpec(
     val width: Int? = null,
     val height: Int? = null,
@@ -16,10 +13,10 @@ data class DisplaySpec(
     companion object {
         const val MAX_HZ = 240f
 
-        /** `WIDTHxHEIGHT/DPI` with an optional `@HZ`, e.g. `1920x1080/240` or `1920x1080/240@90`. */
+        // WIDTHxHEIGHT/DPI with an optional @HZ
         private val PATTERN = Regex("(\\d{3,5})x(\\d{3,5})/(\\d{2,3})(?:@(\\d{1,3}(?:\\.\\d{1,2})?))?")
 
-        /** Returns an all-automatic spec for blank text and null for text that is not a valid spec. */
+        // Blank text is an all-automatic spec; text that is not a valid spec is null
         fun parse(text: String): DisplaySpec? {
             val trimmed = text.trim()
             if (trimmed.isEmpty()) return DisplaySpec()
@@ -34,10 +31,8 @@ data class DisplaySpec(
             )
         }
 
-        /** How wide, in dp, Automatic makes the layout: a laptop-sized desktop rather than a phone layout. */
         const val DESKTOP_DP_WIDTH = 1600
 
-        /** The density for [width] pixels that gives a [DESKTOP_DP_WIDTH] dp wide layout: 1920 px is 192 dpi. */
         fun autoDpi(width: Int): Int = (width * 160f / DESKTOP_DP_WIDTH).roundToInt().coerceIn(72, 800)
 
         fun formatHz(hz: Float): String =
