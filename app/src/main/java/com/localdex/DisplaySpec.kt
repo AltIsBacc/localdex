@@ -1,6 +1,7 @@
 package com.localdex
 
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * What the virtual display should look like. A null part means "choose automatically": the screen's own size and
@@ -33,8 +34,11 @@ data class DisplaySpec(
             )
         }
 
-        /** A density that gives a desktop-like layout 1280 dp wide: 1920 px is 240 dpi, 2560 px is 320 dpi. */
-        fun autoDpi(width: Int): Int = (width / 8).coerceIn(72, 800)
+        /** How wide, in dp, Automatic makes the layout: a laptop-sized desktop rather than a phone layout. */
+        const val DESKTOP_DP_WIDTH = 1600
+
+        /** The density for [width] pixels that gives a [DESKTOP_DP_WIDTH] dp wide layout: 1920 px is 192 dpi. */
+        fun autoDpi(width: Int): Int = (width * 160f / DESKTOP_DP_WIDTH).roundToInt().coerceIn(72, 800)
 
         fun formatHz(hz: Float): String =
             if (hz % 1f == 0f) hz.toInt().toString() else String.format(Locale.ROOT, "%.1f", hz)

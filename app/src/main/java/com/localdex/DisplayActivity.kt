@@ -120,11 +120,9 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         val (displayWidth, displayHeight, dpi) = size ?: run {
             val screen = windowManager.maximumWindowMetrics.bounds
-            Triple(
-                spec.width ?: screen.width(),
-                spec.height ?: screen.height(),
-                spec.dpi ?: spec.width?.let { DisplaySpec.autoDpi(it) } ?: resources.displayMetrics.densityDpi,
-            )
+            // Automatic never borrows the phone's density, which would give a phone-sized UI on a desktop display.
+            val width = spec.width ?: screen.width()
+            Triple(width, spec.height ?: screen.height(), spec.dpi ?: DisplaySpec.autoDpi(width))
         }.also { size = it }
         forwarder.displayWidth = displayWidth
         forwarder.displayHeight = displayHeight
