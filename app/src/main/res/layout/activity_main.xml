@@ -42,6 +42,7 @@
                 android:id="@+id/customResolutionField"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:imeOptions="actionDone"
                 android:hint="Custom, e.g. 1920x1080"
                 android:inputType="text"
                 android:visibility="gone" />
@@ -62,6 +63,7 @@
                 android:id="@+id/customDpiField"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:imeOptions="actionDone"
                 android:hint="Custom, e.g. 240"
                 android:inputType="number"
                 android:visibility="gone" />
@@ -82,9 +84,28 @@
                 android:id="@+id/customHzField"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:imeOptions="actionDone"
                 android:hint="Custom, e.g. 90 or 72.5"
                 android:inputType="numberDecimal"
                 android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/summaryText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:background="@drawable/summary_bg"
+                android:lineSpacingExtra="2dp"
+                android:padding="14dp"
+                android:textSize="15sp" />
+
+            <Button
+                android:id="@+id/resetButton"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:text="Reset to automatic" />
         </LinearLayout>
 
         <Button

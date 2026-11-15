@@ -1,5 +1,6 @@
 package com.localdex
 
+import kotlin.math.floor
 import kotlin.math.roundToInt
 
 object Presets {
@@ -28,5 +29,16 @@ object Presets {
     fun refreshRates(screenHz: Float): List<Float> {
         val screen = screenHz.roundToInt().coerceAtLeast(1)
         return (1..4).map { screen.toFloat() / it }.filter { it >= 24f }
+    }
+
+    /**
+     * Roughly what the system gives for [requested]: the lowest divisor of the screen's rate that is not below it,
+     * and the screen's own rate for anything above it. The system decides, so this is only a preview.
+     */
+    fun expectedRefreshRate(screenHz: Float, requested: Float): Float {
+        val screen = screenHz.roundToInt().coerceAtLeast(1).toFloat()
+        if (requested >= screen) return screen
+        val divisor = floor(screen / requested + 0.001f).toInt().coerceAtLeast(1)
+        return screen / divisor
     }
 }

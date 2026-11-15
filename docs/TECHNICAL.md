@@ -43,6 +43,7 @@ The root process stays alive while a `use` block is running, and for a few secon
 
 - **Resolution** presets are fixed sizes. Automatic uses the window bounds.
 - **DPI** presets are the Android density buckets. When the DPI is automatic the density is `width * 160 / 1600`, which keeps the layout 1600 dp wide whatever the resolution, as a desktop expects (192 dpi at 1920 px, 234 dpi at 2340 px). The phone's own density is never used: at about 420 dpi it made the desktop a phone-sized UI with huge icons and truncated labels.
+- **Summary and validation.** Every picker and custom field calls `MainActivity.refreshSummary`, which reads the three parts as `Result`s, flags an invalid custom value on its field (only once something has been typed), disables the Open button while any part is invalid and describes the outcome: size, density, layout size in dp, and the refresh rate. `Presets.expectedRefreshRate` previews the system's rounding (the lowest divisor of the screen's rate that is not below the request); it is a preview, the system decides.
 - **Hz** presets are derived from the screen: its highest supported rate divided by 1 to 4, dropping anything under 24 Hz. This is because the requested rate is rounded up to a divisor of the physical rate.
 
 ## Input

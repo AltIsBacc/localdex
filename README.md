@@ -18,6 +18,8 @@ Leaving the app closes the display and its windows.
 
 ### Display settings
 
+A summary under the pickers shows what you will get before you open the display: the pixel size and density, the layout size in dp (a desktop wants well over 1000 dp wide) and the refresh rate, including what the system will round a request to. A custom value that is not valid is flagged in its field and the Open button stays disabled until it is fixed. **Reset to automatic** puts all three back.
+
 - **Resolution**: common sizes from 1280×720 to 4K, or `WIDTHxHEIGHT` (200 to 8192 pixels).
 - **Density**: the Android buckets (120 to 480 dpi) with extra steps from 120 to 240, or any value from 72 to 800. Automatic gives a desktop-like layout 1600 dp wide whatever the resolution (1920 px is 192 dpi, 2340 px is 234 dpi), never the phone's own density, which would make a phone-sized UI. Lower values make everything smaller and fit more on screen.
 - **Refresh rate**: the system rounds the request up to a divisor of the screen's own rate, so the presets are the screen's rate divided by 1 to 4 (on a 90 Hz panel: 90, 45 and 30). Custom accepts 1 to 240 Hz, but a value that is not a divisor is rounded and the app tells you what the system actually gave.
