@@ -9,6 +9,7 @@ import android.view.HapticFeedbackConstants
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.View
 import android.view.ViewConfiguration
@@ -128,6 +129,10 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
         forwarder.displayWidth = displayWidth
         forwarder.displayHeight = displayHeight
         fitSurface()
+
+        // Tell the panel what rate the content is meant to run at, so an adaptive refresh rate screen does not settle
+        // below it. This is only a hint, and only the virtual display's own rate decides how often it renders.
+        spec.hz?.let { holder.surface.setFrameRate(it, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT) }
 
         // The virtual display renders into buffers of exactly this size; wait for the resized surface.
         if (width != displayWidth || height != displayHeight) {
