@@ -29,15 +29,62 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Display (WIDTHxHEIGHT/DPI@HZ, optional)"
+                android:layout_marginTop="0dp"
+                android:text="Resolution"
                 android:textStyle="bold" />
 
+            <Spinner
+                android:id="@+id/resolutionSpinner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
             <EditText
-                android:id="@+id/displaySpecField"
+                android:id="@+id/customResolutionField"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:hint="Custom, e.g. 1920x1080"
                 android:inputType="text"
-                android:hint="Blank uses this screen's size" />
+                android:visibility="gone" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Density (DPI)"
+                android:textStyle="bold" />
+
+            <Spinner
+                android:id="@+id/dpiSpinner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <EditText
+                android:id="@+id/customDpiField"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Custom, e.g. 240"
+                android:inputType="number"
+                android:visibility="gone" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Refresh rate"
+                android:textStyle="bold" />
+
+            <Spinner
+                android:id="@+id/hzSpinner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <EditText
+                android:id="@+id/customHzField"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Custom, e.g. 90 or 72.5"
+                android:inputType="numberDecimal"
+                android:visibility="gone" />
         </LinearLayout>
 
         <Button

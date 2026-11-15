@@ -37,6 +37,14 @@ The root process stays alive while a `use` block is running, and for a few secon
 - After the display exists, `enable_freeform_support` and `force_resizable_activities` are set to 1 (not restored afterwards) and the new display is switched to freeform with `wm set-display-windowing-mode -d <id> 5`, since virtual displays default to fullscreen on recent One UI. `force_resizable_activities` matters because a non-resizable activity can be refused on a secondary display, in which case the system starts it on the main display instead.
 - Backgrounding the activity destroys the Surface and therefore the display and its windows.
 
+## Display settings
+
+`DisplaySpec` (width, height, dpi, hz) holds the choice, with null for "automatic". `Prefs` stores it as four values, where 0 means automatic, and still reads the single `WIDTHxHEIGHT/DPI` string that earlier versions saved. `MainActivity` offers a spinner of presets plus a Custom field for each part, and `Presets` holds the lists.
+
+- **Resolution** presets are fixed sizes. Automatic uses the window bounds.
+- **DPI** presets are the Android density buckets. When the resolution is set and the DPI is automatic, the density is `width / 8`, which keeps the layout 1280 dp wide, as a desktop expects. When both are automatic the screen's own density is used.
+- **Hz** presets are derived from the screen: its highest supported rate divided by 1 to 4, dropping anything under 24 Hz. This is because the requested rate is rounded up to a divisor of the physical rate.
+
 ## Input
 
 `DisplayReady.control` is a `Binder` owned by the root process (`ControlBinder`). The app sends input to it as **oneway** transactions (`DexControl`), so injection never blocks the UI thread, and the root process injects real events with `InputManager.injectInputEvent` targeted at the virtual display's id (`InputEvent.setDisplayId`), the same way scrcpy does.

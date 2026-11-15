@@ -43,7 +43,7 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
         override fun onInputDeviceRemoved(deviceId: Int) = updateControls()
         override fun onInputDeviceChanged(deviceId: Int) = updateControls()
     }
-    private val spec by lazy { DisplaySpec.parse(Prefs.getDisplaySpec(this)) ?: DisplaySpec() }
+    private val spec by lazy { Prefs.getSpec(this) }
     private var session: Job? = null
     private var size: Triple<Int, Int, Int>? = null
 
@@ -123,7 +123,7 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
             Triple(
                 spec.width ?: screen.width(),
                 spec.height ?: screen.height(),
-                spec.dpi ?: resources.displayMetrics.densityDpi,
+                spec.dpi ?: spec.width?.let { DisplaySpec.autoDpi(it) } ?: resources.displayMetrics.densityDpi,
             )
         }.also { size = it }
         forwarder.displayWidth = displayWidth
