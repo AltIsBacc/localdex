@@ -16,9 +16,12 @@ Run a desktop on a **virtual display inside the app**. The display is rendered s
 
 Leaving the app closes the display and its windows.
 
-A display spec with a different aspect ratio than the screen will stretch the picture. Match the screen's ratio or leave it blank.
+The picture is letterboxed to the display's aspect ratio. Keyboard, mouse and touch are forwarded to the virtual display:
 
-The view is output only for now: touch and keyboard input are not forwarded to the virtual display.
+- physical keyboard and mouse work directly, including right click, middle click, back/forward buttons and the wheel
+- one finger acts as the mouse, two fingers scroll
+- the ⌨ button shows the on-screen keyboard
+- the ✕ button closes the display (Back is forwarded to the display); both buttons can be moved by long-pressing and dragging
 
 See the [technical breakdown](docs/TECHNICAL.md) for details.
 
