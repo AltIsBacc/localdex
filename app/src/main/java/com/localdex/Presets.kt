@@ -17,8 +17,8 @@ object Presets {
         Resolution("3840×2160 (4K, heavy on the GPU)", 3840, 2160),
     )
 
-    /** The standard Android density buckets. */
-    val dpis = listOf(120, 160, 213, 240, 280, 320, 400, 480)
+    /** The standard Android density buckets, with extra steps below 240 where a desktop usually wants to be. */
+    val dpis = listOf(120, 140, 160, 180, 200, 213, 240, 280, 320, 400, 480)
 
     /**
      * Refresh rates the system can honour exactly: the system rounds a request up to a divisor of the physical

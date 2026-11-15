@@ -4,8 +4,8 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
- * What the virtual display should look like. A null part means "choose automatically": the screen's own size and
- * density, and the system's default refresh rate.
+ * What the virtual display should look like. A null part means "choose automatically": the screen's own size, a
+ * desktop-sized density (see [autoDpi]) and the system's default refresh rate.
  */
 data class DisplaySpec(
     val width: Int? = null,
