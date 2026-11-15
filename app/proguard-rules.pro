@@ -1,1 +1,1 @@
--keep class com.localdex.xposed.DexHook { *; }
+# No custom rules.
