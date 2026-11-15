@@ -3,6 +3,7 @@ package com.localdex
 import android.os.IBinder
 import android.os.Parcel
 import android.os.RemoteException
+import android.view.Surface
 import com.localdex.root.Protocol
 
 class DexControl(private val binder: IBinder) {
@@ -33,6 +34,21 @@ class DexControl(private val binder: IBinder) {
             it.writeInt(metaState)
             it.writeInt(scanCode)
         }
+
+    fun setSurface(surface: Surface): Boolean {
+        val data = Parcel.obtain()
+        val reply = Parcel.obtain()
+        return try {
+            surface.writeToParcel(data, 0)
+            binder.transact(Protocol.TX_SURFACE, data, reply, 0)
+            reply.readInt() == 1
+        } catch (e: RemoteException) {
+            false
+        } finally {
+            reply.recycle()
+            data.recycle()
+        }
+    }
 
     private inline fun send(code: Int, write: (Parcel) -> Unit) {
         val data = Parcel.obtain()

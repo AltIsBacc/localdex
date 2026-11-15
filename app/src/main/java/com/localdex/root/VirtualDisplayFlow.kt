@@ -90,6 +90,27 @@ class VirtualDisplayFlow(
         null
     }
 
+    private class Output(private var surface: Surface) {
+        private var released = false
+
+        @Synchronized
+        fun swap(display: VirtualDisplay, next: Surface) {
+            if (released) {
+                next.release()
+                return
+            }
+            display.setSurface(next)
+            surface.release()
+            surface = next
+        }
+
+        @Synchronized
+        fun release() {
+            released = true
+            surface.release()
+        }
+    }
+
     override fun flow() = flow {
         var flags = PUBLIC or PRESENTATION or OWN_CONTENT_ONLY or SUPPORTS_TOUCH or ROTATES_WITH_CONTENT or
             DESTROY_CONTENT_ON_REMOVAL or SHOULD_SHOW_SYSTEM_DECORATIONS
@@ -97,13 +118,14 @@ class VirtualDisplayFlow(
             flags = flags or TRUSTED or OWN_DISPLAY_GROUP or ALWAYS_UNLOCKED or TOUCH_FEEDBACK_DISABLED
         }
         if (Build.VERSION.SDK_INT >= 34) flags = flags or OWN_FOCUS or DEVICE_DISPLAY_GROUP
+        val output = Output(surface)
         val display = checkNotNull(
             createDisplay(systemContext.getSystemService(DisplayManager::class.java), flags)
         ) { "DisplayManager refused to create the virtual display" }
         try {
             val created = display.display
             Log.i(TAG, "Created $created")
-            val control = ControlBinder(InputInjector(created.displayId))
+            val control = ControlBinder(InputInjector(created.displayId)) { output.swap(display, it) }
             emit(
                 DisplayReady(
                     created.displayId,
@@ -115,7 +137,7 @@ class VirtualDisplayFlow(
             awaitCancellation()
         } finally {
             display.release()
-            surface.release()
+            output.release()
         }
     }
 }

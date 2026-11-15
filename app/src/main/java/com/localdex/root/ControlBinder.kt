@@ -3,8 +3,12 @@ package com.localdex.root
 import android.os.Binder
 import android.os.Parcel
 import android.util.Log
+import android.view.Surface
 
-internal class ControlBinder(private val injector: InputInjector) : Binder() {
+internal class ControlBinder(
+    private val injector: InputInjector,
+    private val onSurface: (Surface) -> Unit,
+) : Binder() {
 
     override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
         try {
@@ -32,6 +36,10 @@ internal class ControlBinder(private val injector: InputInjector) : Binder() {
                     val metaState = data.readInt()
                     val scanCode = data.readInt()
                     injector.key(action, keyCode, repeat, metaState, scanCode)
+                }
+                Protocol.TX_SURFACE -> {
+                    onSurface(Surface.CREATOR.createFromParcel(data))
+                    reply?.writeInt(1)
                 }
                 else -> return super.onTransact(code, data, reply, flags)
             }
