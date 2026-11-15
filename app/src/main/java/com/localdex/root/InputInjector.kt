@@ -29,6 +29,9 @@ internal class InputInjector(private val displayId: Int) {
         }
     )
     private val coords = arrayOf(MotionEvent.PointerCoords())
+    private val touchProperties = Array(MAX_TOUCH_POINTERS) { MotionEvent.PointerProperties() }
+    private val touchCoords = Array(MAX_TOUCH_POINTERS) { MotionEvent.PointerCoords() }
+    private var touchDownTime = SystemClock.uptimeMillis()
 
     private var downTime = SystemClock.uptimeMillis()
     private var lastErrorLog = 0L
@@ -55,6 +58,31 @@ internal class InputInjector(private val displayId: Int) {
     @Synchronized
     fun scroll(x: Float, y: Float, hScroll: Float, vScroll: Float, buttons: Int) {
         motion(MotionEvent.ACTION_SCROLL, x, y, buttons, 0, hScroll, vScroll)
+    }
+
+    @Synchronized
+    fun touch(action: Int, count: Int, ids: IntArray, xs: FloatArray, ys: FloatArray) {
+        val pointers = minOf(count, MAX_TOUCH_POINTERS)
+        val now = SystemClock.uptimeMillis()
+        if ((action and MotionEvent.ACTION_MASK) == MotionEvent.ACTION_DOWN) touchDownTime = now
+        for (i in 0 until pointers) {
+            touchProperties[i].id = ids[i]
+            touchProperties[i].toolType = MotionEvent.TOOL_TYPE_FINGER
+            touchCoords[i].clear()
+            touchCoords[i].x = xs[i]
+            touchCoords[i].y = ys[i]
+            touchCoords[i].pressure = 1f
+            touchCoords[i].size = 1f
+        }
+        val event = MotionEvent.obtain(
+            touchDownTime, now, action, pointers, touchProperties, touchCoords, 0, 0, 1f, 1f,
+            0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0
+        )
+        try {
+            inject(event)
+        } finally {
+            event.recycle()
+        }
     }
 
     @Synchronized
@@ -123,5 +151,6 @@ internal class InputInjector(private val displayId: Int) {
     private companion object {
         const val TAG = "LocalDex"
         const val INJECT_MODE_ASYNC = 0
+        const val MAX_TOUCH_POINTERS = 10
     }
 }

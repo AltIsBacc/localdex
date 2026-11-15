@@ -37,6 +37,19 @@ internal class ControlBinder(
                     val scanCode = data.readInt()
                     injector.key(action, keyCode, repeat, metaState, scanCode)
                 }
+                Protocol.TX_TOUCH -> {
+                    val action = data.readInt()
+                    val count = data.readInt()
+                    val ids = IntArray(count)
+                    val xs = FloatArray(count)
+                    val ys = FloatArray(count)
+                    for (i in 0 until count) {
+                        ids[i] = data.readInt()
+                        xs[i] = data.readFloat()
+                        ys[i] = data.readFloat()
+                    }
+                    injector.touch(action, count, ids, xs, ys)
+                }
                 Protocol.TX_SURFACE -> {
                     onSurface(Surface.CREATOR.createFromParcel(data))
                     reply?.writeInt(1)

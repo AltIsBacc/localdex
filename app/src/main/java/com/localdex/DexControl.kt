@@ -35,6 +35,17 @@ class DexControl(private val binder: IBinder) {
             it.writeInt(scanCode)
         }
 
+    fun touch(action: Int, count: Int, ids: IntArray, xs: FloatArray, ys: FloatArray) =
+        send(Protocol.TX_TOUCH) {
+            it.writeInt(action)
+            it.writeInt(count)
+            for (i in 0 until count) {
+                it.writeInt(ids[i])
+                it.writeFloat(xs[i])
+                it.writeFloat(ys[i])
+            }
+        }
+
     fun setSurface(surface: Surface): Boolean {
         val data = Parcel.obtain()
         val reply = Parcel.obtain()
