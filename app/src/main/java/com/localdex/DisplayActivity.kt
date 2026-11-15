@@ -167,6 +167,8 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
             ).show()
         }
         Root.exec("settings put global enable_freeform_support 1")
+        // Without this, activities that are not resizable are refused on a secondary display and open on the main one.
+        Root.exec("settings put global force_resizable_activities 1")
         Root.exec("wm set-display-windowing-mode -d ${ready.displayId} 5")
     }
 
