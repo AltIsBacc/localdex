@@ -23,6 +23,12 @@ The windowing mode and display size persist across reboots, so the notification 
 
 A display spec with a different aspect ratio than the screen will stretch the picture. Match the phone's ratio or leave it blank.
 
+## In-app virtual display
+
+**Open virtual display in app** creates a separate virtual display and renders it straight into a SurfaceView inside LocalDex, through the same root session. The Surface is handed to the root process, which creates the display on it, so there is still no encoding or decoding. The display spec field applies here too. Leave the app to close the display.
+
+This view is output only for now: touch and keyboard input are not forwarded to the virtual display.
+
 ## LSPosed (optional)
 
 Root alone forces freeform windowing on display 0. If One UI still refuses to run the desktop shell there, enable the LocalDex module in LSPosed with scope **System Framework** and **System UI**, then reboot once.

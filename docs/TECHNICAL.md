@@ -34,6 +34,28 @@ If any step fails, `disable` runs immediately.
 
 `BootReceiver` starts the service on boot when DeX is active, because the windowing mode and display size persist across reboots.
 
+## In-app virtual display
+
+A second mode shows a separate virtual display inside the app instead of touching display 0.
+
+```
+DisplayActivity (SurfaceView) ──Surface──▶ librootkotlinx ──▶ root process
+                                                               │ VirtualDisplayFlow
+                                                               ▼
+                                   DisplayManager.createVirtualDisplay(..., surface, flags)
+                                                               │
+                                   SurfaceFlinger composites into the app's Surface
+```
+
+`RootManager` is the single `RootSession`. `DisplayActivity` passes the SurfaceView's `Surface` to `VirtualDisplayFlow`, a `RootFlow` whose constructor arguments are parcelled to the root process (a `Surface` parcels its buffer-producer binder). The root process creates the virtual display with that Surface as its output, so frames go from SurfaceFlinger into the app's buffer queue with no capture, encoder or decoder in between.
+
+- The flow emits `DisplayReady(displayId)` once and then waits. Cancelling the collection releases the display, and `DisplayActivity` cancels it when the Surface is destroyed, so the display never outlives the view.
+- The Surface is fixed to the display size (`setFixedSize`) because the virtual display renders into buffers of exactly that size. A display spec from the main screen (`WIDTHxHEIGHT/DPI`) is used if set, otherwise the SurfaceView size and the screen density.
+- Flags are the set scrcpy uses for `--new-display`: public, presentation, own content only, touch support, rotate with content, own display group, always unlocked, touch feedback disabled and system decorations, plus own focus and device display group on API 33+.
+- After the display exists, `enable_freeform_support` is set to 1 (not restored afterwards) and the new display is switched to freeform with `wm set-display-windowing-mode -d <id> 5`, since virtual displays default to fullscreen on recent One UI.
+- Backgrounding the activity destroys the Surface and therefore the display and its windows.
+- The view is output only: touch and key events are not forwarded to the virtual display yet.
+
 ## LSPosed layer (optional)
 
 `DexHook` is a legacy Xposed API module (`assets/xposed_init`) scoped to `android` and `com.android.systemui`.
