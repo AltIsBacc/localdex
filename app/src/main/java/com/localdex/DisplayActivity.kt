@@ -38,7 +38,7 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         val (displayWidth, displayHeight, dpi) = size ?: run {
-            val spec = DexMode.SPEC_PATTERN.matchEntire(Prefs.getDisplaySpec(this))
+            val spec = DisplaySpec.PATTERN.matchEntire(Prefs.getDisplaySpec(this))
             Triple(
                 spec?.groupValues?.get(1)?.toInt() ?: width,
                 spec?.groupValues?.get(2)?.toInt() ?: height,

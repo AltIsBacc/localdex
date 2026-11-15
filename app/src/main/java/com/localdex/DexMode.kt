@@ -18,14 +18,12 @@ object DexMode {
     private val DENSITY_PATTERN = Regex("Override density:\\s*(\\d+)")
     private val NUMERIC = Regex("\\d+")
 
-    val SPEC_PATTERN = Regex("(\\d{3,5})x(\\d{3,5})/(\\d{2,3})")
-
     fun isActive(context: Context): Boolean = Prefs.isActive(context)
 
     suspend fun enable(context: Context, spec: String): Result<Unit> {
         if (Prefs.isActive(context)) return Result.success(Unit)
 
-        val match = SPEC_PATTERN.matchEntire(spec)
+        val match = DisplaySpec.PATTERN.matchEntire(spec)
         if (spec.isNotEmpty() && match == null) {
             return Result.failure(IllegalArgumentException("Display spec must look like 1920x1080/240"))
         }

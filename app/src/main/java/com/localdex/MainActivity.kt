@@ -115,7 +115,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun enableDex() {
         val spec = displaySpecField.text.toString().trim()
-        if (spec.isNotEmpty() && !DexMode.SPEC_PATTERN.matches(spec)) {
+        if (spec.isNotEmpty() && !DisplaySpec.PATTERN.matches(spec)) {
             Toast.makeText(this, "Display spec must look like 1920x1080/240", Toast.LENGTH_LONG).show()
             return
         }
@@ -126,7 +126,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun openViewer() {
         val spec = displaySpecField.text.toString().trim()
-        if (spec.isNotEmpty() && !DexMode.SPEC_PATTERN.matches(spec)) {
+        if (spec.isNotEmpty() && !DisplaySpec.PATTERN.matches(spec)) {
             Toast.makeText(this, "Display spec must look like 1920x1080/240", Toast.LENGTH_LONG).show()
             return
         }
