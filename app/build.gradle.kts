@@ -47,4 +47,5 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
     implementation("be.mygod.librootkotlinx:librootkotlinx:2.0.0-beta02")
+    implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")
 }
