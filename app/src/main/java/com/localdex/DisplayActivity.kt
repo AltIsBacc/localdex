@@ -91,7 +91,7 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
     }
 
     private fun updateControls() {
-        val devices = InputDevice.getDeviceIds().mapNotNull { InputDevice.getDevice(it) }.filter { !it.isVirtual }
+        val devices = InputDevice.getDeviceIds().toList().mapNotNull { InputDevice.getDevice(it) }.filter { !it.isVirtual }
         val hasKeyboard = devices.any {
             it.keyboardType == InputDevice.KEYBOARD_TYPE_ALPHABETIC && it.supportsSource(InputDevice.SOURCE_KEYBOARD)
         }
