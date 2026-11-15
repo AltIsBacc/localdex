@@ -1,9 +1,11 @@
 package com.localdex
 
 import android.annotation.SuppressLint
+import android.hardware.input.InputManager
 import android.os.Bundle
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
+import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.SurfaceHolder
@@ -30,8 +32,14 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     private lateinit var root: FrameLayout
     private lateinit var surfaceView: DexSurfaceView
+    private lateinit var controls: List<View>
 
     private val forwarder = InputForwarder()
+    private val deviceListener = object : InputManager.InputDeviceListener {
+        override fun onInputDeviceAdded(deviceId: Int) = updateControls()
+        override fun onInputDeviceRemoved(deviceId: Int) = updateControls()
+        override fun onInputDeviceChanged(deviceId: Int) = updateControls()
+    }
     private var session: Job? = null
     private var size: Triple<Int, Int, Int>? = null
 
@@ -53,8 +61,11 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
         surfaceView.setOnTouchListener { view, event -> forwarder.onTouch(view, event) }
         surfaceView.setOnGenericMotionListener { view, event -> forwarder.onGenericMotion(view, event) }
 
-        makeDraggable(findViewById(R.id.closeButton)) { finish() }
-        makeDraggable(findViewById(R.id.keyboardButton)) { toggleKeyboard() }
+        val closeButton = findViewById<View>(R.id.closeButton)
+        val keyboardButton = findViewById<View>(R.id.keyboardButton)
+        controls = listOf(closeButton, keyboardButton)
+        makeDraggable(closeButton) { finish() }
+        makeDraggable(keyboardButton) { toggleKeyboard() }
 
         root.addOnLayoutChangeListener { _, l, t, r, b, ol, ot, or, ob ->
             if (r - l != or - ol || b - t != ob - ot) fitSurface()
@@ -66,6 +77,27 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
         }
 
         enterImmersive()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        getSystemService(InputManager::class.java).registerInputDeviceListener(deviceListener, null)
+        updateControls()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        getSystemService(InputManager::class.java).unregisterInputDeviceListener(deviceListener)
+    }
+
+    private fun updateControls() {
+        val devices = InputDevice.getDeviceIds().mapNotNull { InputDevice.getDevice(it) }.filter { !it.isVirtual }
+        val hasKeyboard = devices.any {
+            it.keyboardType == InputDevice.KEYBOARD_TYPE_ALPHABETIC && it.supportsSource(InputDevice.SOURCE_KEYBOARD)
+        }
+        val hasMouse = devices.any { it.supportsSource(InputDevice.SOURCE_MOUSE) }
+        val visibility = if (hasKeyboard && hasMouse) View.GONE else View.VISIBLE
+        controls.forEach { it.visibility = visibility }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

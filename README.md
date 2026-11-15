@@ -22,6 +22,8 @@ The picture is letterboxed to the display's aspect ratio. Keyboard, mouse and to
 - one finger acts as the mouse, two fingers scroll
 - the ⌨ button shows the on-screen keyboard
 - the ✕ button closes the display (Back is forwarded to the display); both buttons can be moved by long-pressing and dragging
+- the view is immersive fullscreen; swipe from a screen edge to reveal the system bars
+- when a physical keyboard and a mouse are both connected, the ✕ and ⌨ buttons are hidden; leave with the Home gesture or Recents
 
 See the [technical breakdown](docs/TECHNICAL.md) for details.
 

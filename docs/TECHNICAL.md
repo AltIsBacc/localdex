@@ -49,6 +49,12 @@ The root process stays alive while a `use` block is running, and for a few secon
 
 Coordinates are mapped from view space to display space with a plain scale, which is exact because the view is sized to the display's aspect ratio.
 
+## Fullscreen and controls
+
+`DisplayActivity` is edge-to-edge: system bars are hidden with `BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE` and re-hidden whenever the window regains focus, the layout extends into the display cutout, and a blank display spec uses the full window bounds so the display covers the whole screen. Edge-to-edge windows are not resized for the keyboard, so the activity applies the IME inset as bottom padding itself and re-fits the surface.
+
+The ✕ and ⌨ buttons are hidden while a non-virtual alphabetic keyboard and a mouse-capable device are both connected. An `InputManager.InputDeviceListener` re-evaluates this when devices are added, removed or changed, while the activity is started.
+
 ## Hidden APIs
 
 librootkotlinx waits for the root process to exit with `Process.openPidFd`, which is a blocked hidden API in the app process. Without a bypass it logs `Failed to nonblocking awaitExit` and falls back to a blocking wait. `RootManager.initServer` calls `HiddenApiBypass.setHiddenApiExemptions("")` from the standalone `org.lsposed.hiddenapibypass` library first (no LSPosed installation involved), as VPNHotspot does. Code running inside the root process is not subject to hidden API restrictions.
