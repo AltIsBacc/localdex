@@ -5,6 +5,7 @@ import android.os.Build
 import android.os.Parcelable
 import android.util.Log
 import android.view.Surface
+import be.mygod.librootkotlinx.ParcelableBinder
 import be.mygod.librootkotlinx.RootFlow
 import be.mygod.librootkotlinx.systemContext
 import kotlinx.coroutines.awaitCancellation
@@ -12,7 +13,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.parcelize.Parcelize
 
 @Parcelize
-data class DisplayReady(val displayId: Int, val trusted: Boolean) : Parcelable
+data class DisplayReady(val displayId: Int, val trusted: Boolean, val control: ParcelableBinder) : Parcelable
 
 /**
  * Runs in the root process. Creates a virtual display whose output is [surface], the Surface of a SurfaceView living
@@ -63,7 +64,14 @@ class VirtualDisplayFlow(
         try {
             val created = display.display
             Log.i(TAG, "Created $created")
-            emit(DisplayReady(created.displayId, (created.flags and DISPLAY_FLAG_TRUSTED) != 0))
+            val control = ControlBinder(InputInjector(created.displayId))
+            emit(
+                DisplayReady(
+                    created.displayId,
+                    (created.flags and DISPLAY_FLAG_TRUSTED) != 0,
+                    ParcelableBinder(control),
+                )
+            )
             awaitCancellation()
         } finally {
             display.release()
