@@ -56,6 +56,13 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
             try {
                 RootManager.use { server ->
                     server.flow(VirtualDisplayFlow(surface, displayWidth, displayHeight, dpi)).collect { ready ->
+                        if (!ready.trusted) {
+                            Toast.makeText(
+                                this@DisplayActivity,
+                                "The system did not mark the display as trusted, so no desktop will appear",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
                         // Virtual displays default to fullscreen windowing on recent One UI; freeform gives windows.
                         Root.exec("settings put global enable_freeform_support 1")
                         Root.exec("wm set-display-windowing-mode -d ${ready.displayId} 5")
