@@ -63,7 +63,7 @@ The root process stays alive while a `use` block is running, and for a few secon
 `InputForwarder` translates what the view receives:
 
 - **Mouse**: hover, move, left/right/middle buttons and the wheel are forwarded as real mouse events (`SOURCE_MOUSE`). Each button change produces `ACTION_DOWN` (first button), `ACTION_BUTTON_PRESS`, `ACTION_BUTTON_RELEASE` and `ACTION_UP` (last button), which is what apps such as Chrome expect. The back and forward buttons become `KEYCODE_BACK` and `KEYCODE_FORWARD`.
-- **Touch**: one finger is a mouse click or drag, two fingers scroll. Touch is deliberately not forwarded as touch, because One UI's desktop shell crashes when a window caption is dragged by a touchscreen pointer.
+- **Touch**: by default one finger is a mouse click or drag and two fingers scroll, because One UI's desktop shell crashes when a window caption is dragged by a touchscreen pointer. Games such as CODM and MLBB ignore mouse events, so touch mode (the 🖱/👆 button, saved in `Prefs`) sends every finger as a `SOURCE_TOUCHSCREEN` `TOOL_TYPE_FINGER` pointer through `TX_TOUCH`, with the pointer ids and action index of the original event. Mouse devices stay mouse events in both modes.
 - **Keyboard**: every key event reaching the activity is forwarded with its key code, scan code, meta state and repeat count, except volume, power, sleep, wake and brightness keys, which stay with the phone. Back is forwarded too; use the close button to leave.
 - **On-screen keyboard**: the keyboard button shows the IME on a view that reports itself as a text editor with `TYPE_NULL`. Key events pass through; committed text is converted to key events through the virtual keyboard's character map, so characters that map to no key are dropped.
 

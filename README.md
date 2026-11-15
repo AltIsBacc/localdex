@@ -27,7 +27,7 @@ A summary under the pickers shows what you will get before you open the display:
 The picture is letterboxed to the display's aspect ratio. Keyboard, mouse and touch are forwarded to the virtual display:
 
 - physical keyboard and mouse work directly, including right click, middle click, back/forward buttons and the wheel
-- one finger acts as the mouse, two fingers scroll
+- one finger acts as the mouse, two fingers scroll; the 🖱/👆 button switches to **touch mode**, which sends fingers as real multi-touch, for games and apps that ignore the mouse
 - the ⌨ button shows the on-screen keyboard
 - the ✕ button closes the display (Back is forwarded to the display); both buttons can be moved by long-pressing and dragging
 - leaving the app does not close the display; reopen LocalDex and tap **Return to virtual display**, or tap the notification
