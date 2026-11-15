@@ -2,20 +2,23 @@ package com.localdex.root
 
 import android.hardware.display.DisplayManager
 import android.os.Build
+import android.os.Parcelable
 import android.view.Surface
-import be.mygod.librootkotlinx.ParcelableInt
 import be.mygod.librootkotlinx.RootFlow
 import be.mygod.librootkotlinx.systemContext
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.flow
 import kotlinx.parcelize.Parcelize
 
+@Parcelize
+data class DisplayReady(val displayId: Int) : Parcelable
+
 /**
  * Runs in the root process. Creates a virtual display whose output is [surface], the Surface of a SurfaceView living
  * in the app, so SurfaceFlinger composites the display straight into the app's buffer queue: no capture, no encoder,
  * no decoder.
  *
- * Emits the new display id once, then stays alive until the collector is cancelled. Cancelling releases the display,
+ * Emits [DisplayReady] once, then stays alive until the collector is cancelled. Cancelling releases the display,
  * so the display can never outlive the SurfaceView that is showing it.
  */
 @Parcelize
@@ -24,7 +27,7 @@ class VirtualDisplayFlow(
     private val width: Int,
     private val height: Int,
     private val dpi: Int,
-) : RootFlow<ParcelableInt> {
+) : RootFlow<DisplayReady> {
     // Hidden DisplayManager.VIRTUAL_DISPLAY_FLAG_* values, same set scrcpy uses for --new-display.
     private companion object {
         const val PUBLIC = 1 shl 0
@@ -49,7 +52,7 @@ class VirtualDisplayFlow(
                 .createVirtualDisplay("LocalDex", width, height, dpi, surface, flags)
         ) { "DisplayManager refused to create the virtual display" }
         try {
-            emit(ParcelableInt(display.display.displayId))
+            emit(DisplayReady(display.display.displayId))
             awaitCancellation()
         } finally {
             display.release()
