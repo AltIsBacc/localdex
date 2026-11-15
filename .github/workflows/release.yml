@@ -52,15 +52,6 @@ jobs:
           sed -i -E "s/(versionCode\s*=\s*)[0-9]+/\1${code}/" app/build.gradle.kts
           grep -E 'versionName|versionCode' app/build.gradle.kts
 
-      # Debug builds are signed with the runner's auto-generated debug keystore.
-      # Cache it under a fixed key so every release carries the same signature —
-      # otherwise each tag would need an uninstall/reinstall on the device.
-      - name: Cache debug keystore
-        uses: actions/cache@v4
-        with:
-          path: ~/.android/debug.keystore
-          key: debug-keystore-v1
-
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
