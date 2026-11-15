@@ -33,6 +33,9 @@ data class DisplaySpec(
             )
         }
 
+        /** A density that gives a desktop-like layout 1280 dp wide: 1920 px is 240 dpi, 2560 px is 320 dpi. */
+        fun autoDpi(width: Int): Int = (width / 8).coerceIn(72, 800)
+
         fun formatHz(hz: Float): String =
             if (hz % 1f == 0f) hz.toInt().toString() else String.format(Locale.ROOT, "%.1f", hz)
     }
