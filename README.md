@@ -14,7 +14,7 @@ Run a desktop on a **virtual display inside the app**. The display is rendered s
 3. Pick a resolution, density (DPI) and refresh rate, or choose **Custom** in any of them to type your own. **Automatic** uses this screen's size, a desktop-sized density and the system's default refresh rate.
 4. Tap **Open virtual display**.
 
-Leaving the app closes the display and its windows.
+The display and its windows keep running while the app is in the background. Tap the notification to come back to it. It closes only when you press the ✕ button or the **Close** action on the notification.
 
 ### Display settings
 
@@ -30,8 +30,9 @@ The picture is letterboxed to the display's aspect ratio. Keyboard, mouse and to
 - one finger acts as the mouse, two fingers scroll
 - the ⌨ button shows the on-screen keyboard
 - the ✕ button closes the display (Back is forwarded to the display); both buttons can be moved by long-pressing and dragging
+- leaving the app does not close the display; reopen LocalDex and tap **Return to virtual display**, or tap the notification
 - the view is immersive fullscreen; swipe from a screen edge to reveal the system bars
-- when a physical keyboard and a mouse are both connected, the ✕ and ⌨ buttons are hidden; leave with the Home gesture or Recents
+- when a physical keyboard and a mouse are both connected, the ✕ and ⌨ buttons are hidden; leave with the Home gesture or Recents and close the display from the notification
 
 See the [technical breakdown](docs/TECHNICAL.md) for details.
 

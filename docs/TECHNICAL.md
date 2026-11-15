@@ -5,13 +5,23 @@
 LocalDex creates a virtual display in a root process and points its output at a Surface owned by the app. SurfaceFlinger composites the display straight into the app's buffer queue, so nothing is captured, encoded or decoded.
 
 ```
-DisplayActivity (SurfaceView) ──Surface──▶ librootkotlinx ──▶ root process
-                                                               │ VirtualDisplayFlow
-                                                               ▼
-                                   DisplayManager.createVirtualDisplay(..., surface, flags)
-                                                               │
-                                   SurfaceFlinger composites into the app's Surface
+DisplayService ── DisplaySession ──Surface──▶ librootkotlinx ──▶ root process
+                        ▲                                          │ VirtualDisplayFlow
+DisplayActivity ─ attach/detach                                    ▼
+   (SurfaceView)                    DisplayManager.createVirtualDisplay(..., surface, flags)
+                                                                   │
+                                    SurfaceFlinger composites into the app's Surface
 ```
+
+## Session and service
+
+`DisplaySession` owns the virtual display, not `DisplayActivity`, so the display survives the activity being stopped or destroyed.
+
+- `DisplaySession.start` resolves the display size and density from the saved spec, creates a **sink** (an `ImageReader` that discards every frame it receives) and starts a `VirtualDisplayFlow` with the sink as its output. The sink keeps the display's output alive, so the display stays on and its windows keep running with no activity on screen.
+- `DisplayActivity` shows the display by handing its SurfaceView's `Surface` to `DisplaySession.attach`, which sends it to the root process over the control binder (`DexControl.setSurface`, a synchronous transaction). The root process calls `VirtualDisplay.setSurface` and releases the previous surface. `surfaceDestroyed` calls `detach`, which swaps the sink back in before the SurfaceView's surface goes away.
+- `DisplayService` is a foreground service whose notification has a **Close** action and opens `DisplayActivity` when tapped. It exists to keep the process, the root session and the display alive in the background; it stops itself when the session ends.
+- The display is destroyed only by `DisplaySession.stop`, which cancels the flow so the root process releases the display. That is called by the ✕ button and by the notification's Close action. A failure to create the display also ends the session. `DisplayActivity` and `MainActivity` observe `DisplaySession.config`: the display activity finishes when it becomes null, and the main screen switches its button to **Return to virtual display** while it is not.
+- The service is not sticky. If the app process is killed, the root process and the display go with it.
 
 ## Root layer
 
@@ -27,15 +37,15 @@ The root process stays alive while a `use` block is running, and for a few secon
 
 ## Virtual display
 
-`DisplayActivity` passes the SurfaceView's `Surface` to `VirtualDisplayFlow`, a `RootFlow` whose constructor arguments are parcelled to the root process (a `Surface` parcels its buffer-producer binder). The root process creates the virtual display with that Surface as its output.
+`DisplaySession` passes the sink's `Surface` to `VirtualDisplayFlow`, a `RootFlow` whose constructor arguments are parcelled to the root process (a `Surface` parcels its buffer-producer binder). The root process creates the virtual display with that Surface as its output.
 
-- The flow emits `DisplayReady(displayId, trusted, control)` once and then waits. Cancelling the collection releases the display, and `DisplayActivity` cancels it when the Surface is destroyed, so the display never outlives the view.
-- The Surface is fixed to the display size (`setFixedSize`) because the virtual display renders into buffers of exactly that size. A display spec (`WIDTHxHEIGHT/DPI`, optionally `@HZ`) is used if set, otherwise the screen size and an automatic density (see Display settings).
+- The flow emits `DisplayReady(displayId, trusted, refreshRate, control)` once and then waits. Cancelling the collection releases the display, which `DisplaySession.stop` does. The flow starts with the sink as its output and the control binder can replace it (`TX_SURFACE`).
+- The Surface is fixed to the display size (`setFixedSize`) because the virtual display renders into buffers of exactly that size. A display spec (`WIDTHxHEIGHT/DPI`, optionally `@HZ`) is used if set, otherwise the screen size (always landscape, since the service has no orientation of its own) and an automatic density (see Display settings).
 - **Refresh rate.** The `DisplayManager.createVirtualDisplay(name, w, h, dpi, surface, flags)` overload has no refresh rate parameter, so the display runs at the system default (60 Hz here). When a rate is requested on API 34+, the display is created from a `VirtualDisplayConfig` instead, with `setRequestedRefreshRate` (looked up by reflection, in case a release lacks it). The system rounds the request up to a divisor of the physical screen's refresh rate, so on a 90 Hz panel only 90, 45, 30… are exact. If building the config fails, the display is created with the plain overload at the default rate. `DisplayReady.refreshRate` carries the rate the system actually granted, and the app shows a toast when it differs from the request by more than 1 Hz. The app also calls `Surface.setFrameRate` on the SurfaceView with the requested rate, as a hint so an adaptive refresh rate panel does not settle below it.
 - Flags are the set scrcpy uses for `--new-display`: public, presentation, own content only, touch support, rotate with content, destroy content on removal and system decorations; on API 33+ also **trusted**, own display group, always unlocked and touch feedback disabled; on API 34+ also own focus and device display group.
 - **The display must be trusted.** `DisplayManagerService` clears `SHOULD_SHOW_SYSTEM_DECORATIONS` (and ignores home support) on any display created without `VIRTUAL_DISPLAY_FLAG_TRUSTED`, so no home or desktop ever starts on it and the output stays black. Root satisfies the `ADD_TRUSTED_DISPLAY` check, and root is exempt from the package-name check, so no shell identity is needed. `DisplayReady.trusted` reports whether the resulting `Display` carries `FLAG_TRUSTED`, and the app warns if it does not.
 - After the display exists, `enable_freeform_support` and `force_resizable_activities` are set to 1 (not restored afterwards) and the new display is switched to freeform with `wm set-display-windowing-mode -d <id> 5`, since virtual displays default to fullscreen on recent One UI. `force_resizable_activities` matters because a non-resizable activity can be refused on a secondary display, in which case the system starts it on the main display instead.
-- Backgrounding the activity destroys the Surface and therefore the display and its windows.
+- Backgrounding the activity does not touch the display: its SurfaceView surface is replaced by the sink.
 
 ## Display settings
 
@@ -48,7 +58,7 @@ The root process stays alive while a `use` block is running, and for a few secon
 
 ## Input
 
-`DisplayReady.control` is a `Binder` owned by the root process (`ControlBinder`). The app sends input to it as **oneway** transactions (`DexControl`), so injection never blocks the UI thread, and the root process injects real events with `InputManager.injectInputEvent` targeted at the virtual display's id (`InputEvent.setDisplayId`), the same way scrcpy does.
+`DisplayReady.control` is a `Binder` owned by the root process (`ControlBinder`). The app sends input to it as **oneway** transactions (`DexControl`), so injection never blocks the UI thread (the surface swap is the one synchronous transaction), and the root process injects real events with `InputManager.injectInputEvent` targeted at the virtual display's id (`InputEvent.setDisplayId`), the same way scrcpy does.
 
 `InputForwarder` translates what the view receives:
 
