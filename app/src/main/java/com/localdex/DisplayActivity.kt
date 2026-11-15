@@ -28,6 +28,7 @@ import com.localdex.root.VirtualDisplayFlow
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
@@ -41,6 +42,7 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
         override fun onInputDeviceRemoved(deviceId: Int) = updateControls()
         override fun onInputDeviceChanged(deviceId: Int) = updateControls()
     }
+    private val spec by lazy { DisplaySpec.parse(Prefs.getDisplaySpec(this)) ?: DisplaySpec() }
     private var session: Job? = null
     private var size: Triple<Int, Int, Int>? = null
 
@@ -116,12 +118,11 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         val (displayWidth, displayHeight, dpi) = size ?: run {
-            val spec = DisplaySpec.PATTERN.matchEntire(Prefs.getDisplaySpec(this))
             val screen = windowManager.maximumWindowMetrics.bounds
             Triple(
-                spec?.groupValues?.get(1)?.toInt() ?: screen.width(),
-                spec?.groupValues?.get(2)?.toInt() ?: screen.height(),
-                spec?.groupValues?.get(3)?.toInt() ?: resources.displayMetrics.densityDpi,
+                spec.width ?: screen.width(),
+                spec.height ?: screen.height(),
+                spec.dpi ?: resources.displayMetrics.densityDpi,
             )
         }.also { size = it }
         forwarder.displayWidth = displayWidth
@@ -138,7 +139,8 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
         session = lifecycleScope.launch {
             try {
                 RootManager.use { server ->
-                    server.flow(VirtualDisplayFlow(surface, displayWidth, displayHeight, dpi)).collect { onReady(it) }
+                    server.flow(VirtualDisplayFlow(surface, displayWidth, displayHeight, dpi, spec.hz ?: 0f))
+                        .collect { onReady(it) }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -166,6 +168,16 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
                 "The system did not mark the display as trusted, so no desktop will appear",
                 Toast.LENGTH_LONG
             ).show()
+        }
+        spec.hz?.let { requested ->
+            if (abs(ready.refreshRate - requested) > 1f) {
+                Toast.makeText(
+                    this,
+                    "Asked for ${DisplaySpec.formatHz(requested)} Hz, the system gave " +
+                        "${DisplaySpec.formatHz(ready.refreshRate)} Hz",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
         }
         val commands = listOf(
             "settings put global enable_freeform_support 1",

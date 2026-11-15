@@ -11,7 +11,7 @@ Run a desktop on a **virtual display inside the app**. The display is rendered s
 
 1. Install the APK and open LocalDex.
 2. Grant superuser access.
-3. Optionally enter a display spec (`WIDTHxHEIGHT/DPI`, e.g. `1920x1080/240`). Leave it blank to use the size and density of the screen.
+3. Optionally enter a display spec (`WIDTHxHEIGHT/DPI`, e.g. `1920x1080/240`, with an optional refresh rate such as `1920x1080/240@90`). Leave it blank to use the size and density of the screen and the default refresh rate.
 4. Tap **Open virtual display**.
 
 Leaving the app closes the display and its windows.

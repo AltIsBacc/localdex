@@ -1,10 +1,13 @@
 package com.localdex.root
 
 import android.hardware.display.DisplayManager
+import android.hardware.display.VirtualDisplay
+import android.hardware.display.VirtualDisplayConfig
 import android.os.Build
 import android.os.Parcelable
 import android.util.Log
 import android.view.Surface
+import androidx.annotation.RequiresApi
 import be.mygod.librootkotlinx.ParcelableBinder
 import be.mygod.librootkotlinx.RootFlow
 import be.mygod.librootkotlinx.systemContext
@@ -13,7 +16,13 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.parcelize.Parcelize
 
 @Parcelize
-data class DisplayReady(val displayId: Int, val trusted: Boolean, val control: ParcelableBinder) : Parcelable
+data class DisplayReady(
+    val displayId: Int,
+    val trusted: Boolean,
+    /** The refresh rate the system actually gave the display, which can differ from the one requested. */
+    val refreshRate: Float,
+    val control: ParcelableBinder,
+) : Parcelable
 
 /**
  * Runs in the root process. Creates a virtual display whose output is [surface], the Surface of a SurfaceView living
@@ -29,6 +38,8 @@ class VirtualDisplayFlow(
     private val width: Int,
     private val height: Int,
     private val dpi: Int,
+    /** Requested refresh rate in Hz; 0 leaves it to the system. The system rounds it to a divisor of the screen's. */
+    private val refreshRate: Float = 0f,
 ) : RootFlow<DisplayReady> {
     // Hidden DisplayManager.VIRTUAL_DISPLAY_FLAG_* values, same set scrcpy uses for --new-display.
     private companion object {
@@ -48,6 +59,35 @@ class VirtualDisplayFlow(
 
         const val DISPLAY_FLAG_TRUSTED = 1 shl 7
         const val TAG = "LocalDex"
+        const val DISPLAY_NAME = "LocalDex"
+    }
+
+    /**
+     * The long-standing [DisplayManager.createVirtualDisplay] overload has no refresh rate parameter, so a requested
+     * rate goes through [VirtualDisplayConfig] (API 34+). Any failure falls back to the plain overload, so the
+     * display still opens, at the default rate.
+     */
+    private fun createDisplay(manager: DisplayManager, flags: Int): VirtualDisplay? {
+        val configured = if (refreshRate > 0f && Build.VERSION.SDK_INT >= 34) {
+            createWithRefreshRate(manager, flags)
+        } else {
+            null
+        }
+        return configured ?: manager.createVirtualDisplay(DISPLAY_NAME, width, height, dpi, surface, flags)
+    }
+
+    @RequiresApi(34)
+    private fun createWithRefreshRate(manager: DisplayManager, flags: Int): VirtualDisplay? = try {
+        val setRefreshRate = VirtualDisplayConfig.Builder::class.java
+            .getMethod("setRequestedRefreshRate", Float::class.javaPrimitiveType)
+        val builder = VirtualDisplayConfig.Builder(DISPLAY_NAME, width, height, dpi)
+            .setFlags(flags)
+            .setSurface(surface)
+        setRefreshRate.invoke(builder, refreshRate)
+        manager.createVirtualDisplay(builder.build())
+    } catch (e: Exception) {
+        Log.w(TAG, "Could not request $refreshRate Hz, using the default refresh rate", e)
+        null
     }
 
     override fun flow() = flow {
@@ -58,8 +98,7 @@ class VirtualDisplayFlow(
         }
         if (Build.VERSION.SDK_INT >= 34) flags = flags or OWN_FOCUS or DEVICE_DISPLAY_GROUP
         val display = checkNotNull(
-            systemContext.getSystemService(DisplayManager::class.java)
-                .createVirtualDisplay("LocalDex", width, height, dpi, surface, flags)
+            createDisplay(systemContext.getSystemService(DisplayManager::class.java), flags)
         ) { "DisplayManager refused to create the virtual display" }
         try {
             val created = display.display
@@ -69,6 +108,7 @@ class VirtualDisplayFlow(
                 DisplayReady(
                     created.displayId,
                     (created.flags and DISPLAY_FLAG_TRUSTED) != 0,
+                    created.refreshRate,
                     ParcelableBinder(control),
                 )
             )

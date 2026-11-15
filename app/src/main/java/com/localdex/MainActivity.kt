@@ -56,8 +56,8 @@ class MainActivity : AppCompatActivity() {
     private fun showReady() {
         statusText.text = "✅ Root granted.\n\n" +
             "Open the virtual display to run a separate desktop inside this app. Leave the " +
-            "display spec blank to use the size and density of this screen, or enter " +
-            "WIDTHxHEIGHT/DPI."
+            "display spec blank to use the size and density of this screen and the default " +
+            "refresh rate, or enter WIDTHxHEIGHT/DPI with an optional @HZ."
         render(ready = true)
     }
 
@@ -69,8 +69,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun openViewer() {
         val spec = displaySpecField.text.toString().trim()
-        if (spec.isNotEmpty() && !DisplaySpec.PATTERN.matches(spec)) {
-            Toast.makeText(this, "Display spec must look like 1920x1080/240", Toast.LENGTH_LONG).show()
+        if (DisplaySpec.parse(spec) == null) {
+            Toast.makeText(
+                this,
+                "Display spec must look like 1920x1080/240 or 1920x1080/240@90 (Hz from 1 to 240)",
+                Toast.LENGTH_LONG
+            ).show()
             return
         }
         Prefs.setDisplaySpec(this, spec)
