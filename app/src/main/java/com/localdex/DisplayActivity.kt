@@ -14,6 +14,8 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.FrameLayout
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -61,6 +63,10 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
         controls = listOf(closeButton, keyboardButton)
         makeDraggable(closeButton) { DisplaySession.stop() }
         makeDraggable(keyboardButton) { toggleKeyboard() }
+        val touchButton = findViewById<TextView>(R.id.touchButton)
+        forwarder.touchMode = Prefs.getTouchMode(this)
+        touchButton.text = if (forwarder.touchMode) "👆" else "🖱"
+        makeDraggable(touchButton) { toggleTouchMode(touchButton) }
 
         lifecycleScope.launch {
             DisplaySession.config.collect { if (it == null) finish() else applyConfig(it) }
@@ -167,6 +173,17 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
             params.gravity = Gravity.CENTER
             surfaceView.layoutParams = params
         }
+    }
+
+    private fun toggleTouchMode(button: TextView) {
+        forwarder.touchMode = !forwarder.touchMode
+        Prefs.setTouchMode(this, forwarder.touchMode)
+        button.text = if (forwarder.touchMode) "👆" else "🖱"
+        Toast.makeText(
+            this,
+            if (forwarder.touchMode) "Touch mode: fingers are sent as touch" else "Mouse mode: one finger is a mouse",
+            Toast.LENGTH_SHORT
+        ).show()
     }
 
     private fun toggleKeyboard() {

@@ -11,6 +11,7 @@ class InputForwarder {
     var control: DexControl? = null
     var displayWidth = 0
     var displayHeight = 0
+    var touchMode = false
 
     private enum class Gesture { NONE, POINTER, SCROLL, DONE }
 
@@ -25,6 +26,8 @@ class InputForwarder {
         if (!ready(view)) return false
         if (event.getToolType(0) == MotionEvent.TOOL_TYPE_MOUSE) {
             mouseTouch(view, event, control)
+        } else if (touchMode) {
+            multiTouch(view, event, control)
         } else {
             fingerTouch(view, event, control)
         }
@@ -100,6 +103,14 @@ class InputForwarder {
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> syncButtons(control, x, y, 0)
         }
+    }
+
+    private fun multiTouch(view: View, event: MotionEvent, control: DexControl) {
+        val count = event.pointerCount
+        val ids = IntArray(count) { event.getPointerId(it) }
+        val xs = FloatArray(count) { mapX(view, event.getX(it)) }
+        val ys = FloatArray(count) { mapY(view, event.getY(it)) }
+        control.touch(event.action, count, ids, xs, ys)
     }
 
     private fun syncButtons(control: DexControl, x: Float, y: Float, buttonState: Int) {

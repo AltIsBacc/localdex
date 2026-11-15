@@ -37,4 +37,19 @@
         android:text="⌨"
         android:textColor="@color/white"
         android:textSize="20sp" />
+
+    <TextView
+        android:id="@+id/touchButton"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="116dp"
+        android:layout_marginEnd="12dp"
+        android:alpha="0.5"
+        android:background="@drawable/close_button_bg"
+        android:contentDescription="Toggle touch mode"
+        android:gravity="center"
+        android:text="🖱"
+        android:textColor="@color/white"
+        android:textSize="20sp" />
 </FrameLayout>

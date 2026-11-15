@@ -9,6 +9,7 @@ object Prefs {
     private const val KEY_HEIGHT = "display_height"
     private const val KEY_DPI = "display_dpi"
     private const val KEY_HZ = "display_hz"
+    private const val KEY_TOUCH = "touch_mode"
 
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -26,6 +27,11 @@ object Prefs {
             hz = prefs.getFloat(KEY_HZ, 0f).takeIf { it > 0f },
         )
     }
+
+    fun getTouchMode(context: Context) = prefs(context).getBoolean(KEY_TOUCH, false)
+
+    fun setTouchMode(context: Context, enabled: Boolean) =
+        prefs(context).edit().putBoolean(KEY_TOUCH, enabled).apply()
 
     fun setSpec(context: Context, spec: DisplaySpec) {
         prefs(context).edit()
