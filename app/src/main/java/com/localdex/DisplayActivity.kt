@@ -39,6 +39,9 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
     }
     private var config: DisplaySession.Config? = null
     private var attached = false
+    private var inputMode = InputMode.AUTO
+    private var touchApps = emptySet<String>()
+    private lateinit var touchButton: TextView
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,13 +66,17 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
         controls = listOf(closeButton, keyboardButton)
         makeDraggable(closeButton) { DisplaySession.stop() }
         makeDraggable(keyboardButton) { toggleKeyboard() }
-        val touchButton = findViewById<TextView>(R.id.touchButton)
-        forwarder.touchMode = Prefs.getTouchMode(this)
-        touchButton.text = if (forwarder.touchMode) "👆" else "🖱"
-        makeDraggable(touchButton) { toggleTouchMode(touchButton) }
+        touchButton = findViewById(R.id.touchButton)
+        inputMode = Prefs.getInputMode(this)
+        touchApps = Prefs.getTouchApps(this)
+        makeDraggable(touchButton) { cycleInputMode() }
+        applyInputMode()
 
         lifecycleScope.launch {
             DisplaySession.config.collect { if (it == null) finish() else applyConfig(it) }
+        }
+        lifecycleScope.launch {
+            DisplaySession.focus.collect { applyInputMode() }
         }
         lifecycleScope.launch {
             DisplaySession.control.collect { forwarder.control = it }
@@ -175,15 +182,41 @@ class DisplayActivity : AppCompatActivity(), SurfaceHolder.Callback {
         }
     }
 
-    private fun toggleTouchMode(button: TextView) {
-        forwarder.touchMode = !forwarder.touchMode
-        Prefs.setTouchMode(this, forwarder.touchMode)
-        button.text = if (forwarder.touchMode) "👆" else "🖱"
-        Toast.makeText(
-            this,
-            if (forwarder.touchMode) "Touch mode: fingers are sent as touch" else "Mouse mode: one finger is a mouse",
-            Toast.LENGTH_SHORT
-        ).show()
+    private fun applyInputMode() {
+        val focus = DisplaySession.focus.value
+        forwarder.touchMode = when (inputMode) {
+            InputMode.TOUCH -> true
+            InputMode.MOUSE -> false
+            InputMode.AUTO -> focus != null && (focus.isGame || focus.packageName in touchApps)
+        }
+        touchButton.text = when (inputMode) {
+            InputMode.AUTO -> "A"
+            InputMode.TOUCH -> "👆"
+            InputMode.MOUSE -> "🖱"
+        }
+    }
+
+    private fun cycleInputMode() {
+        inputMode = when (inputMode) {
+            InputMode.AUTO -> InputMode.TOUCH
+            InputMode.TOUCH -> InputMode.MOUSE
+            InputMode.MOUSE -> InputMode.AUTO
+        }
+        Prefs.setInputMode(this, inputMode)
+        var message = when (inputMode) {
+            InputMode.AUTO -> "Auto: touch for games, mouse for everything else"
+            InputMode.TOUCH -> "Touch: fingers are always sent as touch"
+            InputMode.MOUSE -> "Mouse: one finger is always a mouse"
+        }
+        val focus = DisplaySession.focus.value
+        if (focus != null && inputMode != InputMode.AUTO) {
+            val touch = inputMode == InputMode.TOUCH
+            Prefs.setTouchApp(this, focus.packageName, touch)
+            touchApps = Prefs.getTouchApps(this)
+            message += "\n${focus.packageName} " + if (touch) "added to the touch list" else "removed from the touch list"
+        }
+        applyInputMode()
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
     private fun toggleKeyboard() {

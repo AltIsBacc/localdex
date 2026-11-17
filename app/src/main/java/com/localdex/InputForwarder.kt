@@ -12,6 +12,7 @@ class InputForwarder {
     var displayWidth = 0
     var displayHeight = 0
     var touchMode = false
+    private var multiTouching = false
 
     private enum class Gesture { NONE, POINTER, SCROLL, DONE }
 
@@ -26,10 +27,9 @@ class InputForwarder {
         if (!ready(view)) return false
         if (event.getToolType(0) == MotionEvent.TOOL_TYPE_MOUSE) {
             mouseTouch(view, event, control)
-        } else if (touchMode) {
-            multiTouch(view, event, control)
         } else {
-            fingerTouch(view, event, control)
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) multiTouching = touchMode
+            if (multiTouching) multiTouch(view, event, control) else fingerTouch(view, event, control)
         }
         return true
     }
