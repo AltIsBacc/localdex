@@ -3,13 +3,16 @@ package com.localdex
 import android.content.Context
 import android.graphics.PixelFormat
 import android.media.ImageReader
+import android.os.Binder
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Parcel
 import android.util.Log
 import android.view.Surface
 import android.view.WindowManager
 import android.widget.Toast
 import com.localdex.root.DisplayReady
+import com.localdex.root.Protocol
 import com.localdex.root.RootManager
 import com.localdex.root.VirtualDisplayFlow
 import kotlinx.coroutines.CancellationException
@@ -26,11 +29,14 @@ object DisplaySession {
 
     data class Config(val width: Int, val height: Int, val dpi: Int, val hz: Float?)
 
+    data class FocusedApp(val packageName: String, val isGame: Boolean)
+
     private const val TAG = "LocalDex"
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val configState = MutableStateFlow<Config?>(null)
     private val controlState = MutableStateFlow<DexControl?>(null)
+    private val focusState = MutableStateFlow<FocusedApp?>(null)
 
     private var job: Job? = null
     private var sink: Surface? = null
@@ -39,6 +45,16 @@ object DisplaySession {
 
     val config: StateFlow<Config?> = configState
     val control: StateFlow<DexControl?> = controlState
+    val focus: StateFlow<FocusedApp?> = focusState
+
+    private val focusListener = object : Binder() {
+        override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
+            if (code != Protocol.CB_FOCUS) return super.onTransact(code, data, reply, flags)
+            val packageName = data.readString() ?: return true
+            focusState.value = FocusedApp(packageName, data.readInt() != 0)
+            return true
+        }
+    }
 
     fun start(context: Context) {
         if (configState.value != null) return
@@ -100,6 +116,7 @@ object DisplaySession {
         owner = null
         attached = null
         controlState.value = null
+        focusState.value = null
         configState.value = null
     }
 
@@ -107,6 +124,7 @@ object DisplaySession {
         val control = DexControl(ready.control.value)
         attached?.let { control.setSurface(it) }
         controlState.value = control
+        control.listenFocus(focusListener)
 
         val app = App.app
         if (!ready.trusted) {
