@@ -1,6 +1,7 @@
 package com.localdex.root
 
 import android.os.Binder
+import android.os.IBinder
 import android.os.Parcel
 import android.util.Log
 import android.view.Surface
@@ -8,6 +9,7 @@ import android.view.Surface
 internal class ControlBinder(
     private val injector: InputInjector,
     private val onSurface: (Surface) -> Unit,
+    private val onFocusListener: (IBinder) -> Unit,
 ) : Binder() {
 
     override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
@@ -50,6 +52,7 @@ internal class ControlBinder(
                     }
                     injector.touch(action, count, ids, xs, ys)
                 }
+                Protocol.TX_FOCUS_LISTENER -> onFocusListener(data.readStrongBinder())
                 Protocol.TX_SURFACE -> {
                     onSurface(Surface.CREATOR.createFromParcel(data))
                     reply?.writeInt(1)
