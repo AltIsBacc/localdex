@@ -2,6 +2,8 @@ package com.localdex
 
 import android.content.Context
 
+enum class InputMode { AUTO, TOUCH, MOUSE }
+
 object Prefs {
     private const val PREFS_NAME = "localdex_prefs"
     private const val KEY_LEGACY_SPEC = "display_spec"
@@ -9,7 +11,8 @@ object Prefs {
     private const val KEY_HEIGHT = "display_height"
     private const val KEY_DPI = "display_dpi"
     private const val KEY_HZ = "display_hz"
-    private const val KEY_TOUCH = "touch_mode"
+    private const val KEY_INPUT_MODE = "input_mode"
+    private const val KEY_TOUCH_APPS = "touch_apps"
 
     private fun prefs(context: Context) =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -28,10 +31,20 @@ object Prefs {
         )
     }
 
-    fun getTouchMode(context: Context) = prefs(context).getBoolean(KEY_TOUCH, false)
+    fun getInputMode(context: Context) =
+        InputMode.values().getOrElse(prefs(context).getInt(KEY_INPUT_MODE, 0)) { InputMode.AUTO }
 
-    fun setTouchMode(context: Context, enabled: Boolean) =
-        prefs(context).edit().putBoolean(KEY_TOUCH, enabled).apply()
+    fun setInputMode(context: Context, mode: InputMode) =
+        prefs(context).edit().putInt(KEY_INPUT_MODE, mode.ordinal).apply()
+
+    fun getTouchApps(context: Context): Set<String> =
+        prefs(context).getStringSet(KEY_TOUCH_APPS, null)?.toSet().orEmpty()
+
+    fun setTouchApp(context: Context, packageName: String, enabled: Boolean) {
+        val apps = getTouchApps(context).toMutableSet()
+        if (enabled) apps += packageName else apps -= packageName
+        prefs(context).edit().putStringSet(KEY_TOUCH_APPS, apps).apply()
+    }
 
     fun setSpec(context: Context, spec: DisplaySpec) {
         prefs(context).edit()

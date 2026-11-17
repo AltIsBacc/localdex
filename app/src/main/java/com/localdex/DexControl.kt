@@ -46,6 +46,8 @@ class DexControl(private val binder: IBinder) {
             }
         }
 
+    fun listenFocus(listener: IBinder) = send(Protocol.TX_FOCUS_LISTENER) { it.writeStrongBinder(listener) }
+
     fun setSurface(surface: Surface): Boolean {
         val data = Parcel.obtain()
         val reply = Parcel.obtain()

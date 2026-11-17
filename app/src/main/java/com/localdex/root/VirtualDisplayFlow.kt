@@ -109,10 +109,16 @@ class VirtualDisplayFlow(
         val display = checkNotNull(
             createDisplay(systemContext.getSystemService(DisplayManager::class.java), flags)
         ) { "DisplayManager refused to create the virtual display" }
+        var watcher: TaskWatcher? = null
         try {
             val created = display.display
             Log.i(TAG, "Created $created")
-            val control = ControlBinder(InputInjector(created.displayId)) { output.swap(display, it) }
+            val taskWatcher = TaskWatcher(created.displayId).also { watcher = it }
+            val control = ControlBinder(
+                InputInjector(created.displayId),
+                onSurface = { output.swap(display, it) },
+                onFocusListener = taskWatcher::listen,
+            )
             emit(
                 DisplayReady(
                     created.displayId,
@@ -123,6 +129,7 @@ class VirtualDisplayFlow(
             )
             awaitCancellation()
         } finally {
+            watcher?.stop()
             display.release()
             output.release()
         }

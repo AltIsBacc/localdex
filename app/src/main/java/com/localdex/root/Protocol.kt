@@ -8,6 +8,8 @@ object Protocol {
     const val TX_KEY = IBinder.FIRST_CALL_TRANSACTION + 2
     const val TX_SURFACE = IBinder.FIRST_CALL_TRANSACTION + 3
     const val TX_TOUCH = IBinder.FIRST_CALL_TRANSACTION + 4
+    const val TX_FOCUS_LISTENER = IBinder.FIRST_CALL_TRANSACTION + 5
+    const val CB_FOCUS = IBinder.FIRST_CALL_TRANSACTION
 
     const val POINTER_HOVER = 0
     const val POINTER_MOVE = 1
